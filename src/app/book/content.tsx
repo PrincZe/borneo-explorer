@@ -16,8 +16,8 @@ const step1Schema = z.object({
   num_guests: z.number().min(1).max(10),
   certification_level: z.string().optional(),
   logged_dives: z.number().optional(),
-  nitrox_required: z.boolean().default(false),
-  equipment_rental: z.boolean().default(false),
+  nitrox_required: z.boolean(),
+  equipment_rental: z.boolean(),
 })
 
 const step2Schema = z.object({
@@ -28,7 +28,7 @@ const step2Schema = z.object({
 })
 
 const fullSchema = step1Schema.merge(step2Schema).extend({
-  selected_addons: z.array(z.string()).default([]),
+  selected_addons: z.array(z.string()).optional(),
 })
 
 type FormData = z.infer<typeof fullSchema>
@@ -63,6 +63,7 @@ export default function BookingContent() {
       num_guests: 2,
       nitrox_required: false,
       equipment_rental: false,
+      selected_addons: [],
     }
   })
 
