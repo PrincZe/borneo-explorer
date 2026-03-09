@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { sendBookingStatusEmail } from '@/lib/email'
+import type { Database } from '@/types/database'
+
+type BookingUpdate = Database['public']['Tables']['bookings']['Update']
 
 const updateSchema = z.object({
   status: z.enum(['pending_payment', 'pending_verification', 'confirmed', 'cancelled']).optional(),
@@ -65,7 +68,7 @@ export async function PATCH(
   const body = await request.json()
   const updates = updateSchema.parse(body)
 
-  const updateData: Record<string, unknown> = { ...updates }
+  const updateData: BookingUpdate = { ...updates }
   if (updates.status === 'confirmed') {
     updateData.verified_by = user.id
     updateData.verified_at = new Date().toISOString()

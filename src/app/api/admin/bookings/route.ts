@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     .range((page - 1) * limit, page * limit - 1)
 
   if (status && status !== 'all') {
-    query = query.eq('status', status)
+    query = query.eq('status', status as 'pending_payment' | 'pending_verification' | 'confirmed' | 'cancelled')
   }
 
   if (search) {
