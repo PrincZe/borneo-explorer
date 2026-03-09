@@ -52,7 +52,7 @@ export async function POST(
 
   if (uploadError) {
     console.error('Upload error:', uploadError)
-    return NextResponse.json({ error: 'Failed to upload receipt' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to upload receipt', detail: uploadError.message }, { status: 500 })
   }
 
   // Get public URL (private bucket — use signed URL approach via storage path)
