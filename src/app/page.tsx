@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Fish, Ship, Award, Star } from 'lucide-react'
 import { AnimateOnScroll } from '@/components/ui/animate-on-scroll'
 import { WaveDivider } from '@/components/ui/wave-divider'
+import HeroSearch from './components/HeroSearch'
 
 export default function Home() {
   return (
@@ -39,17 +40,16 @@ export default function Home() {
             <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in" style={{ animationDuration: '0.8s' }}>
               Dive Sipadan&apos;s Legendary Waters
             </h1>
-            <p className="text-xl md:text-2xl mb-10 animate-fade-in opacity-0" style={{ animationDelay: '0.3s', animationDuration: '0.8s', animationFillMode: 'both' }}>
+            <p className="text-xl md:text-2xl mb-8 animate-fade-in opacity-0" style={{ animationDelay: '0.3s', animationDuration: '0.8s', animationFillMode: 'both' }}>
               Experience world-class diving at Sipadan&apos;s most spectacular sites aboard MV Celebes Explorer
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in opacity-0" style={{ animationDelay: '0.6s', animationDuration: '0.8s', animationFillMode: 'both' }}>
-              <Link href="/diving-packages" className="bg-accent text-white px-8 py-4 rounded-full font-bold hover:bg-accent/80 transition-all duration-300 hover:scale-105 inline-flex items-center justify-center space-x-2">
-                <span>View Packages</span>
-                <span className="text-lg">→</span>
-              </Link>
-              <Link href="/availability" className="bg-white/20 backdrop-blur-sm text-white px-8 py-4 rounded-full font-bold hover:bg-white/30 transition-all duration-300 border border-white/30 inline-flex items-center justify-center">
-                Check Availability
-              </Link>
+            <div className="animate-fade-in opacity-0" style={{ animationDelay: '0.6s', animationDuration: '0.8s', animationFillMode: 'both' }}>
+              <HeroSearch />
+              <div className="mt-4 flex justify-center">
+                <Link href="/diving-packages" className="text-white/70 hover:text-white text-sm underline-offset-4 hover:underline transition-colors">
+                  View all packages →
+                </Link>
+              </div>
             </div>
           </div>
         </div>
