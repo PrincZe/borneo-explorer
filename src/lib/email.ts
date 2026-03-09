@@ -1,8 +1,11 @@
 import { Resend } from 'resend'
 import type { Booking } from '@/types/database'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM_EMAIL = 'MV Celebes Explorer <bookings@celebesexplorer.com>'
+
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 export async function sendBookingConfirmationEmail(booking: Booking & {
   room_type?: { name: string } | null
@@ -13,7 +16,7 @@ export async function sendBookingConfirmationEmail(booking: Booking & {
     return
   }
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to: booking.customer_email,
     subject: `Booking Received — ${booking.booking_ref} | MV Celebes Explorer`,
@@ -77,7 +80,7 @@ export async function sendBookingStatusEmail(
 
   const isConfirmed = newStatus === 'confirmed'
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to: booking.customer_email,
     subject: isConfirmed
