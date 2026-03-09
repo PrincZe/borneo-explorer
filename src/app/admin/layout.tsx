@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import AdminSidebar from './AdminSidebar'
+import type { Profile } from '@/types/database'
 
 export default async function AdminLayout({
   children,
@@ -14,11 +15,13 @@ export default async function AdminLayout({
     return <>{children}</>
   }
 
-  const { data: profile } = await supabase
+  const { data: profileData } = await supabase
     .from('profiles')
     .select('full_name, role')
     .eq('id', user.id)
     .single()
+
+  const profile = profileData as Pick<Profile, 'full_name' | 'role'> | null
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
