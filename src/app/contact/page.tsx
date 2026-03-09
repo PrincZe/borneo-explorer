@@ -23,13 +23,11 @@ import dynamic from 'next/dynamic';
 const Map = dynamic(() => import('../components/Maps'), { ssr: false });
 
 const topics = [
-  'Bali Adventure Package',
-  'Bali Cultural Tour',
-  'Bali Beach Getaway',
-  'Bali Culinary Experience',
-  'Bali Wellness Retreat',
-  'Bali Photography Tour',
-  'Others',
+  'Booking Inquiry',
+  'Diving Packages',
+  'Group / Charter',
+  'Equipment & Requirements',
+  'General Inquiry',
 ];
 
 function ContactPageContent() {
@@ -89,7 +87,7 @@ function ContactPageContent() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-16">
+    <div className="container mx-auto px-4 py-16 pt-28">
       <h1 className="text-4xl font-bold mb-8 text-center">Contact Us</h1>
 
       <div className="max-w-2xl mx-auto">
@@ -190,10 +188,10 @@ function ContactPageContent() {
 
       <div className="mt-16 text-center">
         <h2 className="text-2xl font-bold mb-4">Contact Information</h2>
-        <p className="text-gray-600">Email: info@balitarantula.com</p>
-        <p className="text-gray-600">Phone: +62 123 456 7890</p>
+        <p className="text-gray-600">Email: info@celebesexplorer.com</p>
+        <p className="text-gray-600">Phone: +60 12 345 6789</p>
         <p className="text-gray-600">
-          Address: Jl. Raya Ubud, Ubud, Kabupaten Gianyar, Bali 80571, Indonesia
+          Address: Semporna, Sabah, Malaysia
         </p>
       </div>
 
