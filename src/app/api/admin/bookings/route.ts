@@ -40,7 +40,9 @@ export async function GET(request: NextRequest) {
   }
 
   if (search) {
-    query = query.or(`customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,booking_ref.ilike.%${search}%`)
+    // Limit search length and strip special chars to prevent abuse
+    const safeSearch = search.slice(0, 100).replace(/[%_\\]/g, '\\$&')
+    query = query.or(`customer_name.ilike.%${safeSearch}%,customer_email.ilike.%${safeSearch}%,booking_ref.ilike.%${safeSearch}%`)
   }
 
   const { data: bookings, error, count } = await query

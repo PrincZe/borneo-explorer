@@ -26,7 +26,7 @@ const bookingSchema = z.object({
     notes: z.string().optional(),
   })).default([]),
   special_requests: z.string().optional(),
-  total_amount: z.number().optional(),
+  // total_amount is calculated server-side — client value ignored
 })
 
 export async function POST(request: NextRequest) {
@@ -36,12 +36,25 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
 
+    // Calculate total_amount server-side to prevent price tampering
+    const { data: pricing } = await supabase
+      .from('room_package_pricing')
+      .select('price_override, packages(price_per_person)')
+      .eq('room_type_id', data.room_type_id)
+      .eq('package_id', data.package_id)
+      .single()
+
+    const basePrice = (pricing?.price_override ?? (pricing?.packages as { price_per_person: number } | null)?.price_per_person ?? 0)
+    const addOnsTotal = data.add_ons.reduce((sum, a) => sum + a.price, 0)
+    const calculatedTotal = (basePrice * data.num_guests) + addOnsTotal
+
     const insertData: BookingInsert = {
       ...data,
       booking_ref: '',
       status: 'pending_payment',
       payment_method: 'bank_transfer',
       add_ons: data.add_ons as unknown as BookingInsert['add_ons'],
+      total_amount: calculatedTotal,
     }
 
     const { data: booking, error } = await supabase
