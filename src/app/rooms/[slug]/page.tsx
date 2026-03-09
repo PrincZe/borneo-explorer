@@ -2,6 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Users, Maximize2, BedDouble, CheckCircle, ArrowLeft, ArrowRight } from 'lucide-react'
+import type { RoomType, RoomPackagePricing, Package } from '@/types/database'
+
+type RoomWithPricing = RoomType & {
+  room_package_pricing: (RoomPackagePricing & { packages: Package })[]
+}
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -14,7 +19,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
 
   const supabase = await createClient()
 
-  const { data: room, error } = await supabase
+  const { data: roomRaw, error } = await supabase
     .from('room_types')
     .select(`
       *,
@@ -27,16 +32,10 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
     .eq('is_active', true)
     .single()
 
-  if (error || !room) notFound()
+  if (error || !roomRaw) notFound()
 
-  type PackagePricing = typeof room.room_package_pricing[0] & {
-    packages: {
-      id: string; name: string; slug: string; duration_days: number;
-      num_dives: number | null; features: unknown; is_popular: boolean
-    }
-  }
-
-  const pricingList = (room.room_package_pricing as PackagePricing[]).filter(rp => rp.is_available)
+  const room = roomRaw as RoomWithPricing
+  const pricingList = room.room_package_pricing.filter(rp => rp.is_available)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -118,7 +117,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
                     <div className="flex justify-between items-start mb-1">
                       <h3 className="font-semibold text-gray-900">{rp.packages.name}</h3>
                       <div className="text-right">
-                        <div className="font-bold text-primary">SGD {(rp.price_override ?? 0).toLocaleString()}</div>
+                        <div className="font-bold text-primary">SGD {(rp.price_override ?? rp.packages.price_per_person).toLocaleString()}</div>
                         <div className="text-xs text-gray-400">per person</div>
                       </div>
                     </div>

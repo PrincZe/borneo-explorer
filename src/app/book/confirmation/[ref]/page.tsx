@@ -2,6 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCircle, Clock, XCircle, Mail, Calendar, Users, BedDouble } from 'lucide-react'
+import type { Booking } from '@/types/database'
+
+type BookingWithRelations = Booking & {
+  room_type: { name: string; slug: string } | null
+  package: { name: string; duration_days: number; num_dives: number | null } | null
+}
 
 interface Props {
   params: Promise<{ ref: string }>
@@ -46,7 +52,7 @@ export default async function ConfirmationPage({ params }: Props) {
   const { ref } = await params
   const supabase = await createClient()
 
-  const { data: booking, error } = await supabase
+  const { data: bookingRaw, error } = await supabase
     .from('bookings')
     .select(`
       *,
@@ -56,7 +62,9 @@ export default async function ConfirmationPage({ params }: Props) {
     .eq('booking_ref', ref)
     .single()
 
-  if (error || !booking) notFound()
+  if (error || !bookingRaw) notFound()
+
+  const booking = bookingRaw as BookingWithRelations
 
   const config = statusConfig[booking.status as keyof typeof statusConfig] ?? statusConfig.pending_payment
   const StatusIcon = config.icon
@@ -89,14 +97,14 @@ export default async function ConfirmationPage({ params }: Props) {
             {booking.room_type && (
               <div className="flex items-center gap-3 text-gray-700">
                 <BedDouble className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span>{(booking.room_type as { name: string }).name}</span>
+                <span>{booking.room_type.name}</span>
               </div>
             )}
 
             {booking.package && (
               <div className="flex items-center gap-3 text-gray-700">
                 <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span>{(booking.package as { name: string }).name}</span>
+                <span>{booking.package.name}</span>
               </div>
             )}
 

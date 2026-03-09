@@ -1,28 +1,37 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Booking } from '@/types/database'
 import Link from 'next/link'
 import { ClipboardList, CheckCircle, Clock, XCircle, AlertCircle, TrendingUp } from 'lucide-react'
+
+type BookingStat = Pick<Booking, 'status' | 'total_amount' | 'created_at'>
+type RecentBooking = Pick<Booking, 'id' | 'booking_ref' | 'customer_name' | 'status' | 'total_amount' | 'created_at'> & {
+  room_type: { name: string } | null
+  package: { name: string } | null
+}
 
 export default async function AdminDashboard() {
   const supabase = await createClient()
 
   // Fetch booking stats
-  const { data: bookings } = await supabase
+  const { data: bookingsRaw } = await supabase
     .from('bookings')
     .select('status, total_amount, created_at')
     .order('created_at', { ascending: false })
 
-  const total = bookings?.length ?? 0
-  const pending_payment = bookings?.filter(b => b.status === 'pending_payment').length ?? 0
-  const pending_verification = bookings?.filter(b => b.status === 'pending_verification').length ?? 0
-  const confirmed = bookings?.filter(b => b.status === 'confirmed').length ?? 0
-  const cancelled = bookings?.filter(b => b.status === 'cancelled').length ?? 0
+  const bookings = (bookingsRaw ?? []) as BookingStat[]
+
+  const total = bookings.length
+  const pending_payment = bookings.filter(b => b.status === 'pending_payment').length
+  const pending_verification = bookings.filter(b => b.status === 'pending_verification').length
+  const confirmed = bookings.filter(b => b.status === 'confirmed').length
+  const cancelled = bookings.filter(b => b.status === 'cancelled').length
 
   const totalRevenue = bookings
-    ?.filter(b => b.status === 'confirmed')
-    .reduce((sum, b) => sum + (b.total_amount ?? 0), 0) ?? 0
+    .filter(b => b.status === 'confirmed')
+    .reduce((sum, b) => sum + (b.total_amount ?? 0), 0)
 
   // Recent bookings (last 5)
-  const { data: recentBookings } = await supabase
+  const { data: recentBookingsRaw } = await supabase
     .from('bookings')
     .select(`
       id, booking_ref, customer_name, status, total_amount, created_at,
@@ -31,6 +40,8 @@ export default async function AdminDashboard() {
     `)
     .order('created_at', { ascending: false })
     .limit(5)
+
+  const recentBookings = (recentBookingsRaw ?? []) as RecentBooking[]
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
@@ -128,7 +139,7 @@ export default async function AdminDashboard() {
           </Link>
         </div>
 
-        {!recentBookings || recentBookings.length === 0 ? (
+        {recentBookings.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">No bookings yet</div>
         ) : (
           <div className="divide-y divide-gray-50">
