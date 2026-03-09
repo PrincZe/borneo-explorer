@@ -28,6 +28,7 @@ export type Database = {
           role?: 'company_admin' | 'backend_team' | 'ship_worker'
           created_at?: string
         }
+        Relationships: []
       }
       room_types: {
         Row: {
@@ -69,6 +70,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
         }
+        Relationships: []
       }
       packages: {
         Row: {
@@ -113,6 +115,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
         }
+        Relationships: []
       }
       room_package_pricing: {
         Row: {
@@ -136,6 +139,22 @@ export type Database = {
           price_override?: number | null
           is_available?: boolean
         }
+        Relationships: [
+          {
+            foreignKeyName: "room_package_pricing_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_package_pricing_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       add_on_options: {
         Row: {
@@ -162,6 +181,7 @@ export type Database = {
           category?: string | null
           is_active?: boolean
         }
+        Relationships: []
       }
       bookings: {
         Row: {
@@ -245,6 +265,22 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       blocked_dates: {
         Row: {
@@ -274,6 +310,15 @@ export type Database = {
           blocked_by?: string | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "blocked_dates_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
