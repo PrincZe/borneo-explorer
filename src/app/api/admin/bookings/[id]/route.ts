@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { sendBookingStatusEmail } from '@/lib/email'
 import type { Database } from '@/types/database'
@@ -33,10 +34,15 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 404 })
 
-  // Generate signed URL for receipt if present
+  // Generate signed URL for receipt using admin client (service role)
   let receiptSignedUrl: string | null = null
   if (booking.payment_receipt_url) {
-    const { data } = await supabase.storage
+    const adminClient = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } }
+    )
+    const { data } = await adminClient.storage
       .from('receipts')
       .createSignedUrl(booking.payment_receipt_url, 3600)
     receiptSignedUrl = data?.signedUrl ?? null

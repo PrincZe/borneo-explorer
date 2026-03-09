@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 export async function POST(
   request: NextRequest,
@@ -38,12 +39,18 @@ export async function POST(
     return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
   }
 
-  // Upload to Supabase Storage
+  // Use admin client (service role) for storage upload — bypasses RLS safely on server
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+
   const fileExt = file.name.split('.').pop()
   const fileName = `${booking.booking_ref}-${Date.now()}.${fileExt}`
   const arrayBuffer = await file.arrayBuffer()
 
-  const { data: uploadData, error: uploadError } = await supabase.storage
+  const { data: uploadData, error: uploadError } = await adminClient.storage
     .from('receipts')
     .upload(fileName, arrayBuffer, {
       contentType: file.type,
@@ -55,10 +62,9 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to upload receipt', detail: uploadError.message }, { status: 500 })
   }
 
-  // Get public URL (private bucket — use signed URL approach via storage path)
   const receiptUrl = uploadData.path
 
-  // Update booking status
+  // Update booking status (use regular client — RLS allows public update)
   const { data: updatedBooking, error: updateError } = await supabase
     .from('bookings')
     .update({
