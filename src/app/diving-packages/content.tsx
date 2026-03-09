@@ -10,6 +10,7 @@ import { AnimateOnScroll } from '@/components/ui/animate-on-scroll'
 const packages = [
   {
     id: '4d3n',
+    slug: '4d3n-sipadan-cruise',
     title: '4D3N Sipadan Cruise',
     price: 'SGD 1,088',
     priceNote: 'per person',
@@ -23,6 +24,7 @@ const packages = [
   },
   {
     id: '5d4n',
+    slug: '5d4n-sipadan-adventure',
     title: '5D4N Sipadan Adventure',
     price: 'SGD 1,585',
     priceNote: 'per person',
@@ -36,6 +38,7 @@ const packages = [
   },
   {
     id: 'charter',
+    slug: 'private-charter',
     title: 'Private Charter',
     price: 'SGD 14,540',
     priceNote: 'for up to 10 divers',
