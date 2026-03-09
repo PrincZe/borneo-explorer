@@ -33,7 +33,7 @@ const Header = () => {
     { name: 'Availability', path: '/availability' },
     { name: 'Gallery', path: '/gallery' },
     { name: 'Getting Here', path: '/getting-here' },
-    { name: 'Book Now', path: '/book-now' }
+    { name: 'Book Now', path: '/book' }
   ]
 
   const headerBg = isHome && !scrolled

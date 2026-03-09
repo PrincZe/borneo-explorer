@@ -48,7 +48,7 @@ const Footer = () => {
                 <li><Link href="/the-vessel" className="text-blue-100 hover:text-white transition-colors">About Our Vessel</Link></li>
                 <li><Link href="/dive-sites" className="text-blue-100 hover:text-white transition-colors">Dive Sites</Link></li>
                 <li><Link href="/getting-here" className="text-blue-100 hover:text-white transition-colors">How to Get Here</Link></li>
-                <li><Link href="/book-now" className="text-blue-100 hover:text-white transition-colors">Book Now</Link></li>
+                <li><Link href="/book" className="text-blue-100 hover:text-white transition-colors">Book Now</Link></li>
               </ul>
             </div>
 

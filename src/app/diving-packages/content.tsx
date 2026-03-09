@@ -100,7 +100,7 @@ export default function DivingPackagesContent() {
                           </div>
                         ))}
                       </div>
-                      <Link href={`/book-now?package=${pkg.id}`}>
+                      <Link href={`/book?packageSlug=${pkg.slug}`}>
                         <Button className={`w-full ${pkg.popular ? 'bg-accent hover:bg-accent/90' : ''}`}>
                           Book Now
                         </Button>
