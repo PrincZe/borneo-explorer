@@ -149,7 +149,7 @@ export default async function ConfirmationPage({ params }: Props) {
               <div><span className="text-gray-500">Ref:</span> <strong>{booking.booking_ref}</strong></div>
             </div>
             <Link
-              href={`/book?bookingId=${booking.id}&step=3`}
+              href={`/book/upload-receipt?bookingId=${booking.id}`}
               className="block w-full text-center bg-yellow-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-yellow-700"
             >
               Upload Receipt

@@ -117,7 +117,7 @@ function RoomsContent() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {rooms.map(room => {
               const lowestPrice = room.room_package_pricing?.length
-                ? Math.min(...room.room_package_pricing.map(rp => rp.price_override ?? 0))
+                ? Math.min(...room.room_package_pricing.map(rp => rp.price_override ?? (rp.packages?.price_per_person ?? 0)))
                 : null
 
               return (

@@ -39,6 +39,10 @@ export async function POST(
     return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
   }
 
+  if (booking.status !== 'pending_payment') {
+    return NextResponse.json({ error: 'Receipt can only be uploaded for bookings awaiting payment' }, { status: 400 })
+  }
+
   // Use admin client (service role) for storage upload — bypasses RLS safely on server
   const adminClient = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
