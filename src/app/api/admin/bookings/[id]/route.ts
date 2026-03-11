@@ -83,6 +83,24 @@ export async function PATCH(
   if (updates.status === 'confirmed') {
     updateData.verified_by = user.id
     updateData.verified_at = new Date().toISOString()
+
+    // Calculate affiliate commission on confirmation
+    const { data: currentBooking } = await supabase
+      .from('bookings')
+      .select('total_amount, promo_code_id')
+      .eq('id', id)
+      .single()
+
+    if (currentBooking?.promo_code_id && currentBooking?.total_amount) {
+      const { data: promo } = await supabase
+        .from('promo_codes')
+        .select('affiliate_id, affiliates(commission_rate)')
+        .eq('id', currentBooking.promo_code_id)
+        .single()
+
+      const commissionRate = (promo?.affiliates as { commission_rate: number } | null)?.commission_rate ?? 0
+      updateData.affiliate_commission = Math.round(currentBooking.total_amount * commissionRate / 100 * 100) / 100
+    }
   }
 
   const { data: booking, error } = await supabase

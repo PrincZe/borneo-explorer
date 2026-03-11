@@ -55,6 +55,11 @@ export default function BookingContent() {
   const [uploading, setUploading] = useState(false)
   const [uploadDone, setUploadDone] = useState(false)
 
+  // Promo code state
+  const [promoInput, setPromoInput] = useState('')
+  const [promoStatus, setPromoStatus] = useState<'idle' | 'valid' | 'invalid' | 'checking'>('idle')
+  const [promoData, setPromoData] = useState<{ id: string; code: string; discount_type: string; discount_value: number; affiliate_name: string | null } | null>(null)
+
   const { register, handleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(fullSchema),
     defaultValues: {
@@ -88,6 +93,31 @@ export default function BookingContent() {
 
   useEffect(() => { loadInitialData() }, [loadInitialData])
 
+  // Auto-detect ref_code cookie on mount
+  useEffect(() => {
+    const match = document.cookie.match(/(?:^|;\s*)ref_code=([^;]+)/)
+    if (match) {
+      const code = decodeURIComponent(match[1])
+      setPromoInput(code)
+      validatePromo(code)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function validatePromo(code: string) {
+    if (!code.trim()) { setPromoStatus('idle'); setPromoData(null); return }
+    setPromoStatus('checking')
+    const res = await fetch(`/api/promo?code=${encodeURIComponent(code.trim())}`)
+    const data = await res.json()
+    if (data.valid) {
+      setPromoStatus('valid')
+      setPromoData(data)
+    } else {
+      setPromoStatus('invalid')
+      setPromoData(null)
+    }
+  }
+
   // Pre-select package from URL
   useEffect(() => {
     if (packageSlug && packages.length) {
@@ -99,13 +129,25 @@ export default function BookingContent() {
   const selectedRoom = rooms.find(r => r.id === selectedRoomId)
   const selectedPackage = packages.find(p => p.id === selectedPackageId)
 
-  function calcTotal() {
+  function calcSubtotal() {
     const basePrice = selectedPackage?.price_per_person ?? 0
     const guests = watch('num_guests') ?? 1
     const addonTotal = addOns
       .filter(a => selectedAddons.includes(a.id))
       .reduce((sum, a) => sum + a.price, 0)
     return basePrice * guests + addonTotal
+  }
+
+  function calcDiscount(subtotal: number) {
+    if (!promoData || promoStatus !== 'valid') return 0
+    if (promoData.discount_type === 'percent') return Math.round(subtotal * promoData.discount_value / 100 * 100) / 100
+    if (promoData.discount_type === 'fixed') return Math.min(promoData.discount_value, subtotal)
+    return 0
+  }
+
+  function calcTotal() {
+    const subtotal = calcSubtotal()
+    return subtotal - calcDiscount(subtotal)
   }
 
   async function onStep1Next() {
@@ -129,7 +171,7 @@ export default function BookingContent() {
         body: JSON.stringify({
           ...data,
           add_ons: addOnItems,
-          total_amount: calcTotal(),
+          ...(promoData && promoStatus === 'valid' ? { promo_code: promoData.code } : {}),
         }),
       })
 
@@ -335,6 +377,41 @@ export default function BookingContent() {
                 </div>
               )}
 
+              {/* Promo Code */}
+              <div className="bg-white rounded-2xl shadow p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-3">Promo Code</h2>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={promoInput}
+                    onChange={e => {
+                      setPromoInput(e.target.value.toUpperCase())
+                      setPromoStatus('idle')
+                      setPromoData(null)
+                    }}
+                    placeholder="Enter promo code (optional)"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent uppercase"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => validatePromo(promoInput)}
+                    disabled={promoStatus === 'checking' || !promoInput.trim()}
+                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/80 disabled:opacity-50 transition-colors"
+                  >
+                    {promoStatus === 'checking' ? '...' : 'Apply'}
+                  </button>
+                </div>
+                {promoStatus === 'valid' && promoData && (
+                  <p className="text-green-600 text-sm mt-2">
+                    ✓ Code applied — {promoData.discount_type === 'percent' ? `${promoData.discount_value}% off` : `SGD ${promoData.discount_value} off`}
+                    {promoData.affiliate_name ? ` (via ${promoData.affiliate_name})` : ''}
+                  </p>
+                )}
+                {promoStatus === 'invalid' && (
+                  <p className="text-red-500 text-sm mt-2">✗ Invalid or expired promo code</p>
+                )}
+              </div>
+
               {/* Summary */}
               {selectedRoom && selectedPackage && (
                 <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
@@ -347,6 +424,12 @@ export default function BookingContent() {
                     {selectedAddons.length > 0 && addOns.filter(a => selectedAddons.includes(a.id)).map(a => (
                       <div key={a.id} className="flex justify-between text-gray-500"><span>+ {a.name}</span><span>SGD {a.price}</span></div>
                     ))}
+                    {promoStatus === 'valid' && promoData && calcDiscount(calcSubtotal()) > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Discount ({promoData.code})</span>
+                        <span>- SGD {calcDiscount(calcSubtotal()).toLocaleString()}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between font-bold text-primary text-base pt-2 border-t border-primary/20">
                       <span>Total</span><span>SGD {calcTotal().toLocaleString()}</span>
                     </div>

@@ -26,6 +26,7 @@ const bookingSchema = z.object({
     notes: z.string().optional(),
   })).default([]),
   special_requests: z.string().optional(),
+  promo_code: z.string().optional(),
   // total_amount is calculated server-side — client value ignored
 })
 
@@ -46,7 +47,41 @@ export async function POST(request: NextRequest) {
 
     const basePrice = (pricing?.price_override ?? (pricing?.packages as { price_per_person: number } | null)?.price_per_person ?? 0)
     const addOnsTotal = data.add_ons.reduce((sum, a) => sum + a.price, 0)
-    const calculatedTotal = (basePrice * data.num_guests) + addOnsTotal
+    const subtotal = (basePrice * data.num_guests) + addOnsTotal
+
+    // Validate promo code if provided
+    let promoCodeId: string | null = null
+    let discountAmount = 0
+
+    if (data.promo_code) {
+      const { data: promo } = await supabase
+        .from('promo_codes')
+        .select('id, discount_type, discount_value, max_uses, uses_count, expires_at')
+        .ilike('code', data.promo_code.trim())
+        .eq('is_active', true)
+        .single()
+
+      if (promo) {
+        const notExpired = !promo.expires_at || new Date(promo.expires_at) >= new Date()
+        const withinLimit = promo.max_uses === null || promo.uses_count < promo.max_uses
+
+        if (notExpired && withinLimit) {
+          promoCodeId = promo.id
+          if (promo.discount_type === 'percent') {
+            discountAmount = Math.round(subtotal * promo.discount_value / 100 * 100) / 100
+          } else if (promo.discount_type === 'fixed') {
+            discountAmount = Math.min(promo.discount_value, subtotal)
+          }
+          // Increment uses_count
+          await supabase
+            .from('promo_codes')
+            .update({ uses_count: promo.uses_count + 1 })
+            .eq('id', promo.id)
+        }
+      }
+    }
+
+    const calculatedTotal = subtotal - discountAmount
 
     const insertData: BookingInsert = {
       ...data,
@@ -55,6 +90,8 @@ export async function POST(request: NextRequest) {
       payment_method: 'bank_transfer',
       add_ons: data.add_ons as unknown as BookingInsert['add_ons'],
       total_amount: calculatedTotal,
+      promo_code_id: promoCodeId,
+      discount_amount: discountAmount,
     }
 
     const { data: booking, error } = await supabase

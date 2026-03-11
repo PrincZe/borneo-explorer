@@ -208,6 +208,9 @@ export type Database = {
           admin_notes: string | null
           verified_by: string | null
           verified_at: string | null
+          promo_code_id: string | null
+          discount_amount: number | null
+          affiliate_commission: number | null
           created_at: string
           updated_at: string
         }
@@ -235,6 +238,9 @@ export type Database = {
           admin_notes?: string | null
           verified_by?: string | null
           verified_at?: string | null
+          promo_code_id?: string | null
+          discount_amount?: number | null
+          affiliate_commission?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -262,6 +268,9 @@ export type Database = {
           admin_notes?: string | null
           verified_by?: string | null
           verified_at?: string | null
+          promo_code_id?: string | null
+          discount_amount?: number | null
+          affiliate_commission?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -333,6 +342,96 @@ export type Database = {
   }
 }
 
+      affiliates: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          commission_rate: number
+          is_active: boolean
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          email: string
+          commission_rate?: number
+          is_active?: boolean
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          commission_rate?: number
+          is_active?: boolean
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          id: string
+          code: string
+          affiliate_id: string
+          discount_type: 'percent' | 'fixed' | 'none'
+          discount_value: number
+          max_uses: number | null
+          uses_count: number
+          expires_at: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          affiliate_id: string
+          discount_type?: 'percent' | 'fixed' | 'none'
+          discount_value?: number
+          max_uses?: number | null
+          uses_count?: number
+          expires_at?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          affiliate_id?: string
+          discount_type?: 'percent' | 'fixed' | 'none'
+          discount_value?: number
+          max_uses?: number | null
+          uses_count?: number
+          expires_at?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+  }
+}
+
 // Convenience types
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type RoomType = Database['public']['Tables']['room_types']['Row']
@@ -341,3 +440,5 @@ export type RoomPackagePricing = Database['public']['Tables']['room_package_pric
 export type AddOnOption = Database['public']['Tables']['add_on_options']['Row']
 export type Booking = Database['public']['Tables']['bookings']['Row']
 export type BlockedDate = Database['public']['Tables']['blocked_dates']['Row']
+export type Affiliate = Database['public']['Tables']['affiliates']['Row']
+export type PromoCode = Database['public']['Tables']['promo_codes']['Row']
