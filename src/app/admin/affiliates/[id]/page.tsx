@@ -44,8 +44,27 @@ export default function AffiliateDetailPage() {
     discount_type: 'percent' as 'percent' | 'fixed' | 'none',
     discount_value: 5,
     max_uses: '',
+    expiry_preset: 'never' as 'never' | '7d' | '30d' | '90d' | 'custom',
     expires_at: '',
   })
+
+  function getExpiryDate(preset: string, custom: string): string | null {
+    if (preset === 'never') return null
+    if (preset === 'custom') return custom || null
+    const days = preset === '7d' ? 7 : preset === '30d' ? 30 : 90
+    const d = new Date()
+    d.setDate(d.getDate() + days)
+    return d.toISOString().split('T')[0]
+  }
+
+  function expiryLabel(expires_at: string | null): { text: string; color: string } {
+    if (!expires_at) return { text: 'Never expires', color: 'text-gray-400' }
+    const diff = Math.ceil((new Date(expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    if (diff < 0) return { text: `Expired ${Math.abs(diff)}d ago`, color: 'text-red-500' }
+    if (diff === 0) return { text: 'Expires today', color: 'text-orange-500' }
+    if (diff <= 7) return { text: `Expires in ${diff}d`, color: 'text-orange-500' }
+    return { text: `Expires in ${diff}d (${new Date(expires_at).toLocaleDateString('en-GB')})`, color: 'text-gray-400' }
+  }
 
   const fetchData = useCallback(async () => {
     const res = await fetch(`/api/admin/affiliates/${id}`)
@@ -72,12 +91,12 @@ export default function AffiliateDetailPage() {
         discount_type: codeForm.discount_type,
         discount_value: parseFloat(String(codeForm.discount_value)),
         max_uses: codeForm.max_uses ? parseInt(codeForm.max_uses) : null,
-        expires_at: codeForm.expires_at || null,
+        expires_at: getExpiryDate(codeForm.expiry_preset, codeForm.expires_at),
       }),
     })
     if (res.ok) {
       setShowCodeForm(false)
-      setCodeForm({ code: '', discount_type: 'percent', discount_value: 5, max_uses: '', expires_at: '' })
+      setCodeForm({ code: '', discount_type: 'percent', discount_value: 5, max_uses: '', expiry_preset: 'never', expires_at: '' })
       fetchData()
     } else {
       const data = await res.json()
@@ -201,14 +220,46 @@ export default function AffiliateDetailPage() {
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Expiry Date (optional)</label>
-                  <input
-                    type="date"
-                    value={codeForm.expires_at}
-                    onChange={e => setCodeForm(f => ({ ...f, expires_at: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Expiry</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'never', label: 'Never expires' },
+                      { value: '7d', label: '7 days' },
+                      { value: '30d', label: '30 days' },
+                      { value: '90d', label: '90 days' },
+                      { value: 'custom', label: 'Custom date' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setCodeForm(f => ({ ...f, expiry_preset: opt.value as typeof codeForm.expiry_preset }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                          codeForm.expiry_preset === opt.value
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {codeForm.expiry_preset === 'custom' && (
+                    <input
+                      type="date"
+                      value={codeForm.expires_at}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={e => setCodeForm(f => ({ ...f, expires_at: e.target.value }))}
+                      className="mt-2 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  )}
+                  {codeForm.expiry_preset !== 'never' && codeForm.expiry_preset !== 'custom' && (
+                    <p className="mt-1.5 text-xs text-gray-400">
+                      Expires on {getExpiryDate(codeForm.expiry_preset, '')
+                        ? new Date(getExpiryDate(codeForm.expiry_preset, '')!).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                        : ''}
+                    </p>
+                  )}
                 </div>
               </div>
               {codeError && <p className="text-red-500 text-sm">{codeError}</p>}
@@ -242,14 +293,16 @@ export default function AffiliateDetailPage() {
                       {code.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500 mt-0.5 space-x-3">
+                  <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
                     <span>
                       {code.discount_type === 'none' ? 'Tracking only' :
                         code.discount_type === 'percent' ? `${code.discount_value}% off` :
                         `SGD ${code.discount_value} off`}
                     </span>
                     <span>{code.uses_count}{code.max_uses ? `/${code.max_uses}` : ''} uses</span>
-                    {code.expires_at && <span>Expires {new Date(code.expires_at).toLocaleDateString('en-GB')}</span>}
+                    <span className={expiryLabel(code.expires_at).color}>
+                      {expiryLabel(code.expires_at).text}
+                    </span>
                   </div>
                   <div className="text-xs text-gray-400 mt-1 font-mono">
                     {typeof window !== 'undefined' ? `${window.location.origin}?ref=${code.code}` : `/?ref=${code.code}`}
