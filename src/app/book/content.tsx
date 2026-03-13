@@ -217,7 +217,7 @@ export default function BookingContent() {
       if (!res.ok) throw new Error('Upload failed')
       const json = await res.json()
       setUploadDone(true)
-      router.push(`/book/confirmation/${json.booking.booking_ref}`)
+      router.push(`/book/confirmation/${json.booking.id}`)
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Upload failed')
     } finally {

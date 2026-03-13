@@ -10,7 +10,7 @@ type BookingWithRelations = Booking & {
 }
 
 interface Props {
-  params: Promise<{ ref: string }>
+  params: Promise<{ id: string }>
 }
 
 const statusConfig = {
@@ -49,7 +49,7 @@ const statusConfig = {
 }
 
 export default async function ConfirmationPage({ params }: Props) {
-  const { ref } = await params
+  const { id } = await params
   const supabase = await createClient()
 
   const { data: bookingRaw, error } = await supabase
@@ -59,7 +59,7 @@ export default async function ConfirmationPage({ params }: Props) {
       room_type:room_types(name, slug),
       package:packages(name, duration_days, num_dives)
     `)
-    .eq('booking_ref', ref)
+    .eq('id', id)
     .single()
 
   if (error || !bookingRaw) notFound()

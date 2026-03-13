@@ -60,12 +60,12 @@ export async function sendBookingConfirmationEmail(booking: Booking & {
           </div>
 
           <div style="text-align: center; margin: 24px 0;">
-            <a href="${SITE_URL}/book/confirmation/${booking.booking_ref}"
+            <a href="${SITE_URL}/book/confirmation/${booking.id}"
                style="display: inline-block; background: #0077a8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
               View Booking &amp; Upload Receipt
             </a>
             <p style="color: #999; font-size: 12px; margin-top: 8px;">
-              Or copy this link: ${SITE_URL}/book/confirmation/${booking.booking_ref}
+              Or copy this link: ${SITE_URL}/book/confirmation/${booking.id}
             </p>
           </div>
 
