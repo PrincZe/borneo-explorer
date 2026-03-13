@@ -3,6 +3,14 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+}
+
 async function requireCompanyAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -27,13 +35,27 @@ export async function PATCH(
   const body = await request.json()
   const { role } = updateSchema.parse(body)
 
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
-  )
-
+  const admin = getAdminClient()
   const { error } = await admin.from('profiles').update({ role }).eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const currentUser = await requireCompanyAdmin()
+  if (!currentUser) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  if (currentUser.id === id) {
+    return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 })
+  }
+
+  const admin = getAdminClient()
+  const { error } = await admin.auth.admin.deleteUser(id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ ok: true })

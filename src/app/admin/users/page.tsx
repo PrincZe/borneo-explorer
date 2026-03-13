@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Users, Loader2, Shield, User, Anchor, Plus, Eye, EyeOff } from 'lucide-react'
+import { Users, Loader2, Shield, User, Anchor, Plus, Eye, EyeOff, Trash2 } from 'lucide-react'
 
 type Profile = {
   id: string
@@ -22,6 +22,8 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [updateMsg, setUpdateMsg] = useState<{ id: string; msg: string; ok: boolean } | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
@@ -52,6 +54,19 @@ export default function AdminUsersPage() {
     }
     setUpdatingId(null)
     setTimeout(() => setUpdateMsg(null), 2500)
+  }
+
+  async function handleDelete(id: string) {
+    setDeletingId(id)
+    const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setProfiles(prev => prev.filter(p => p.id !== id))
+    } else {
+      const data = await res.json()
+      alert(data.error ?? 'Failed to delete user')
+    }
+    setDeletingId(null)
+    setConfirmDeleteId(null)
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -226,6 +241,34 @@ export default function AdminUsersPage() {
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
+                    )}
+
+                    {deletingId === profile.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                    ) : confirmDeleteId === profile.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-red-600">Remove?</span>
+                        <button
+                          onClick={() => handleDelete(profile.id)}
+                          className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="text-xs border border-gray-200 px-2 py-1 rounded hover:bg-gray-50"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteId(profile.id)}
+                        className="text-gray-300 hover:text-red-500 transition-colors"
+                        title="Remove user"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     )}
                   </div>
                 </div>
