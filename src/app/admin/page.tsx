@@ -1,69 +1,117 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Booking } from '@/types/database'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { ClipboardList, CheckCircle, Clock, XCircle, AlertCircle, TrendingUp } from 'lucide-react'
+import DashboardFilter from './DashboardFilter'
 
-type BookingStat = Pick<Booking, 'status' | 'total_amount' | 'created_at'>
+type BookingStat = Pick<Booking, 'status' | 'total_amount' | 'created_at' | 'check_in_date'>
 type RecentBooking = Pick<Booking, 'id' | 'booking_ref' | 'customer_name' | 'status' | 'total_amount' | 'created_at'> & {
   room_type: { name: string } | null
   package: { name: string } | null
 }
 
-export default async function AdminDashboard() {
+interface Props {
+  searchParams: Promise<{ month?: string }>
+}
+
+const statusBadge = (status: string) => {
+  const map: Record<string, string> = {
+    pending_payment: 'bg-yellow-100 text-yellow-800',
+    pending_verification: 'bg-blue-100 text-blue-800',
+    confirmed: 'bg-green-100 text-green-800',
+    cancelled: 'bg-red-100 text-red-800',
+  }
+  const labels: Record<string, string> = {
+    pending_payment: 'Pending Payment',
+    pending_verification: 'Pending Verification',
+    confirmed: 'Confirmed',
+    cancelled: 'Cancelled',
+  }
+  return { cls: map[status] ?? 'bg-gray-100 text-gray-800', label: labels[status] ?? status }
+}
+
+export default async function AdminDashboard({ searchParams }: Props) {
+  const { month } = await searchParams
   const supabase = await createClient()
 
-  // Fetch booking stats
+  // Fetch all bookings for monthly breakdown + stats
   const { data: bookingsRaw } = await supabase
     .from('bookings')
-    .select('status, total_amount, created_at')
+    .select('status, total_amount, created_at, check_in_date')
     .order('created_at', { ascending: false })
 
-  const bookings = (bookingsRaw ?? []) as BookingStat[]
+  const allBookings = (bookingsRaw ?? []) as BookingStat[]
 
-  const total = bookings.length
-  const pending_payment = bookings.filter(b => b.status === 'pending_payment').length
-  const pending_verification = bookings.filter(b => b.status === 'pending_verification').length
-  const confirmed = bookings.filter(b => b.status === 'confirmed').length
-  const cancelled = bookings.filter(b => b.status === 'cancelled').length
+  // Filter to selected month if set (based on check_in_date)
+  const filtered = month
+    ? allBookings.filter(b => b.check_in_date?.startsWith(month))
+    : allBookings
 
-  const totalRevenue = bookings
+  const total = filtered.length
+  const pending_payment = filtered.filter(b => b.status === 'pending_payment').length
+  const pending_verification = filtered.filter(b => b.status === 'pending_verification').length
+  const confirmed = filtered.filter(b => b.status === 'confirmed').length
+  const cancelled = filtered.filter(b => b.status === 'cancelled').length
+  const totalRevenue = filtered
     .filter(b => b.status === 'confirmed')
     .reduce((sum, b) => sum + (b.total_amount ?? 0), 0)
 
-  // Recent bookings (last 5)
-  const { data: recentBookingsRaw } = await supabase
-    .from('bookings')
-    .select(`
-      id, booking_ref, customer_name, status, total_amount, created_at,
-      room_type:room_types(name),
-      package:packages(name)
-    `)
-    .order('created_at', { ascending: false })
-    .limit(5)
-
-  const recentBookings = (recentBookingsRaw ?? []) as RecentBooking[]
-
-  const statusBadge = (status: string) => {
-    const map: Record<string, string> = {
-      pending_payment: 'bg-yellow-100 text-yellow-800',
-      pending_verification: 'bg-blue-100 text-blue-800',
-      confirmed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
+  // Monthly breakdown — group by check_in_date month, last 12 months
+  const monthMap: Record<string, { bookings: number; revenue: number; confirmed: number }> = {}
+  for (const b of allBookings) {
+    if (!b.check_in_date) continue
+    const key = b.check_in_date.slice(0, 7) // "YYYY-MM"
+    if (!monthMap[key]) monthMap[key] = { bookings: 0, revenue: 0, confirmed: 0 }
+    monthMap[key].bookings++
+    if (b.status === 'confirmed') {
+      monthMap[key].confirmed++
+      monthMap[key].revenue += b.total_amount ?? 0
     }
-    const labels: Record<string, string> = {
-      pending_payment: 'Pending Payment',
-      pending_verification: 'Pending Verification',
-      confirmed: 'Confirmed',
-      cancelled: 'Cancelled',
-    }
-    return { cls: map[status] ?? 'bg-gray-100 text-gray-800', label: labels[status] ?? status }
   }
+
+  // Build last 12 months sorted descending
+  const now = new Date()
+  const monthRows = []
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    monthRows.push({ key, label, ...(monthMap[key] ?? { bookings: 0, revenue: 0, confirmed: 0 }) })
+  }
+  const maxBookings = Math.max(...monthRows.map(m => m.bookings), 1)
+
+  // Recent bookings filtered to selected month
+  let recentQuery = supabase
+    .from('bookings')
+    .select(`id, booking_ref, customer_name, status, total_amount, created_at, room_type:room_types(name), package:packages(name)`)
+    .order('created_at', { ascending: false })
+    .limit(month ? 50 : 5)
+
+  if (month) {
+    recentQuery = recentQuery.gte('check_in_date', `${month}-01`).lte('check_in_date', `${month}-31`)
+  }
+
+  const { data: recentBookingsRaw } = await recentQuery
+  const recentBookings = (recentBookingsRaw ?? []) as RecentBooking[]
+  const displayBookings = month ? recentBookings : recentBookings.slice(0, 5)
+
+  const selectedLabel = month
+    ? new Date(month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    : null
 
   return (
     <div className="p-6 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-1">Overview of your bookings and revenue</p>
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            {selectedLabel ? `Showing bookings with check-in in ${selectedLabel}` : 'Overview of all bookings and revenue'}
+          </p>
+        </div>
+        <Suspense fallback={null}>
+          <DashboardFilter />
+        </Suspense>
       </div>
 
       {/* Stats grid */}
@@ -130,20 +178,53 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* Recent bookings */}
+      {/* Monthly breakdown */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
+        <div className="p-5 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-900">Bookings by Month (check-in date)</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Last 12 months — click a month to filter</p>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {monthRows.map(row => (
+            <Link
+              key={row.key}
+              href={row.bookings > 0 ? `/admin?month=${row.key}` : '/admin'}
+              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${month === row.key ? 'bg-primary/5' : ''}`}
+            >
+              <div className="w-32 text-sm font-medium text-gray-700 flex-shrink-0">{row.label}</div>
+              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all"
+                  style={{ width: `${(row.bookings / maxBookings) * 100}%` }}
+                />
+              </div>
+              <div className="w-6 text-sm font-bold text-gray-900 text-right flex-shrink-0">{row.bookings}</div>
+              <div className="w-28 text-xs text-gray-400 text-right flex-shrink-0">
+                {row.confirmed > 0 ? `SGD ${row.revenue.toLocaleString()}` : '—'}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent / filtered bookings */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">Recent Bookings</h2>
+          <h2 className="font-semibold text-gray-900">
+            {selectedLabel ? `Bookings in ${selectedLabel}` : 'Recent Bookings'}
+          </h2>
           <Link href="/admin/bookings" className="text-sm text-primary hover:underline">
             View all
           </Link>
         </div>
 
-        {recentBookings.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">No bookings yet</div>
+        {displayBookings.length === 0 ? (
+          <div className="p-8 text-center text-gray-400 text-sm">
+            {selectedLabel ? `No bookings with check-in in ${selectedLabel}` : 'No bookings yet'}
+          </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {recentBookings.map((booking) => {
+            {displayBookings.map((booking) => {
               const { cls, label } = statusBadge(booking.status)
               return (
                 <Link
