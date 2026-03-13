@@ -15,7 +15,7 @@ const step1Schema = z.object({
   check_out_date: z.string().min(1, 'Check-out date required'),
   num_guests: z.number().min(1).max(10),
   certification_level: z.string().optional(),
-  logged_dives: z.number().optional(),
+  logged_dives: z.number().int().min(0).optional(),
   nitrox_required: z.boolean(),
   equipment_rental: z.boolean(),
 })
@@ -156,7 +156,7 @@ export default function BookingContent() {
   async function onStep1Next() {
     const valid = await trigger([
       'room_type_id', 'package_id', 'check_in_date', 'check_out_date',
-      'num_guests', 'certification_level', 'logged_dives', 'nitrox_required', 'equipment_rental',
+      'num_guests', 'nitrox_required', 'equipment_rental',
     ])
 
     const customErrors: { date?: string; guests?: string } = {}
@@ -312,7 +312,7 @@ export default function BookingContent() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Number of Logged Dives</label>
-                <input type="number" min={0} {...register('logged_dives', { valueAsNumber: true })}
+                <input type="number" min={0} {...register('logged_dives', { setValueAs: (v: string) => v === '' ? undefined : Number(v) })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
                   placeholder="e.g. 50" />
               </div>
