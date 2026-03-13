@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, User, Mail, Phone, BedDouble, Package2,
-  Calendar, Users, FileText, CheckCircle, XCircle, Clock, ExternalLink, Loader2, History
+  Calendar, Users, FileText, CheckCircle, XCircle, Clock, ExternalLink, Loader2, History, Upload
 } from 'lucide-react'
 
 type BookingDetail = {
@@ -72,6 +72,9 @@ export default function BookingDetailPage() {
   const [status, setStatus] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
   const [saveMsg, setSaveMsg] = useState('')
+  const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [uploadingReceipt, setUploadingReceipt] = useState(false)
+  const [receiptMsg, setReceiptMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
   const fetchBooking = useCallback(async () => {
     const res = await fetch(`/api/admin/bookings/${id}`)
@@ -102,6 +105,25 @@ export default function BookingDetailPage() {
     }
     setSaving(false)
     setTimeout(() => setSaveMsg(''), 3000)
+  }
+
+  async function handleReceiptUpload() {
+    if (!receiptFile) return
+    setUploadingReceipt(true)
+    setReceiptMsg(null)
+    const form = new FormData()
+    form.append('receipt', receiptFile)
+    const res = await fetch(`/api/admin/bookings/${id}/receipt`, { method: 'POST', body: form })
+    if (res.ok) {
+      setReceiptMsg({ text: 'Receipt uploaded successfully', ok: true })
+      setReceiptFile(null)
+      fetchBooking()
+    } else {
+      const data = await res.json()
+      setReceiptMsg({ text: data.error ?? 'Upload failed', ok: false })
+    }
+    setUploadingReceipt(false)
+    setTimeout(() => setReceiptMsg(null), 4000)
   }
 
   if (loading) {
@@ -432,6 +454,47 @@ export default function BookingDetailPage() {
                 View Confirmation Page
               </Link>
             </div>
+          </div>
+
+          {/* Admin receipt upload */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <h2 className="font-semibold text-gray-900 mb-1 text-sm">Upload Receipt on Behalf</h2>
+            <p className="text-xs text-gray-400 mb-3">For customers who emailed their receipt</p>
+            <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+              receiptFile ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'
+            }`}>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+                onChange={e => setReceiptFile(e.target.files?.[0] ?? null)}
+              />
+              {receiptFile ? (
+                <div className="text-center px-2">
+                  <p className="text-xs font-medium text-primary truncate max-w-full">{receiptFile.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Click to change</p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <Upload className="w-5 h-5 text-gray-400 mx-auto mb-1" />
+                  <p className="text-xs text-gray-500">Click to select file</p>
+                  <p className="text-xs text-gray-400">JPEG, PNG, PDF · Max 5MB</p>
+                </div>
+              )}
+            </label>
+            <button
+              onClick={handleReceiptUpload}
+              disabled={!receiptFile || uploadingReceipt}
+              className="w-full mt-3 flex items-center justify-center gap-2 bg-primary text-white py-2 rounded-lg text-sm font-semibold hover:bg-primary/80 disabled:opacity-50 transition-colors"
+            >
+              {uploadingReceipt && <Loader2 className="w-4 h-4 animate-spin" />}
+              {uploadingReceipt ? 'Uploading...' : 'Upload Receipt'}
+            </button>
+            {receiptMsg && (
+              <p className={`text-xs text-center mt-2 ${receiptMsg.ok ? 'text-green-600' : 'text-red-500'}`}>
+                {receiptMsg.text}
+              </p>
+            )}
           </div>
         </div>
       </div>

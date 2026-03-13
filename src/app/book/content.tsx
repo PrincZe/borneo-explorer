@@ -48,7 +48,6 @@ export default function BookingContent() {
   const [rooms, setRooms] = useState<RoomType[]>([])
   const [packages, setPackages] = useState<Package[]>([])
   const [addOns, setAddOns] = useState<AddOnOption[]>([])
-  const [selectedAddons, setSelectedAddons] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [bookingId, setBookingId] = useState<string | null>(null)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
@@ -77,6 +76,7 @@ export default function BookingContent() {
 
   const selectedRoomId = watch('room_type_id')
   const selectedPackageId = watch('package_id')
+  const selectedAddons = watch('selected_addons') ?? []
 
   const loadInitialData = useCallback(async () => {
     const [roomData, pkgData, addOnData] = await Promise.all([
@@ -179,7 +179,7 @@ export default function BookingContent() {
     setSubmitting(true)
     try {
       const addOnItems = addOns
-        .filter(a => selectedAddons.includes(a.id))
+        .filter(a => (data.selected_addons ?? []).includes(a.id))
         .map(a => ({ id: a.id, name: a.name, price: a.price }))
 
       const res = await fetch('/api/bookings', {
@@ -378,9 +378,10 @@ export default function BookingContent() {
                           type="checkbox"
                           checked={selectedAddons.includes(a.id)}
                           onChange={e => {
-                            setSelectedAddons(prev =>
-                              e.target.checked ? [...prev, a.id] : prev.filter(x => x !== a.id)
-                            )
+                            const next = e.target.checked
+                              ? [...selectedAddons, a.id]
+                              : selectedAddons.filter(x => x !== a.id)
+                            setValue('selected_addons', next)
                           }}
                           className="mt-0.5 w-4 h-4 accent-primary"
                         />
