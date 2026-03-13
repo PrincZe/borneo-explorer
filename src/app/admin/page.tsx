@@ -98,7 +98,9 @@ export default async function AdminDashboard({ searchParams }: Props) {
     .limit(month ? 50 : 5)
 
   if (month) {
-    recentQuery = recentQuery.gte('check_in_date', `${month}-01`).lte('check_in_date', `${month}-31`)
+    const [y, m] = month.split('-').map(Number)
+    const nextMonth = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+    recentQuery = recentQuery.gte('check_in_date', `${month}-01`).lt('check_in_date', `${nextMonth}-01`)
   }
 
   const { data: recentBookingsRaw } = await recentQuery

@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
     .range((page - 1) * limit, page * limit - 1)
 
   if (month && /^\d{4}-\d{2}$/.test(month)) {
-    query = query.gte('check_in_date', `${month}-01`).lte('check_in_date', `${month}-31`)
+    const [y, m] = month.split('-').map(Number)
+    const nextMonth = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+    query = query.gte('check_in_date', `${month}-01`).lt('check_in_date', `${nextMonth}-01`)
   }
 
   if (status && status !== 'all') {
