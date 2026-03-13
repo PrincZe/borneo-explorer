@@ -78,10 +78,10 @@ export default function AdminSidebar({ userEmail, userRole, userName }: Props) {
 
       {/* User info + logout */}
       <div className="p-3 border-t border-gray-800">
-        <div className="px-3 py-2 mb-2">
+        <Link href="/admin/account" className="block px-3 py-2 mb-2 rounded-lg hover:bg-gray-800 transition-colors">
           <div className="text-sm font-medium text-white truncate">{userName || userEmail}</div>
-          <div className="text-xs text-gray-400">{roleLabels[userRole] ?? userRole}</div>
-        </div>
+          <div className="text-xs text-gray-400">{roleLabels[userRole] ?? userRole} · Account settings</div>
+        </Link>
         <button
           onClick={handleSignOut}
           className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"

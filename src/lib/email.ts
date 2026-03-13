@@ -7,6 +7,8 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY)
 }
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://borneo-explorer-chi.vercel.app'
+
 export async function sendBookingConfirmationEmail(booking: Booking & {
   room_type?: { name: string } | null
   package?: { name: string } | null
@@ -54,7 +56,17 @@ export async function sendBookingConfirmationEmail(booking: Booking & {
               <tr><td style="padding: 4px 0; color: #666;">Account Number</td><td style="padding: 4px 0;">5642 1234 5678</td></tr>
               <tr><td style="padding: 4px 0; color: #666;">Reference</td><td style="padding: 4px 0; font-weight: bold;">${booking.booking_ref}</td></tr>
             </table>
-            <p style="color: #666; font-size: 14px; margin-top: 16px;">Please use your booking reference as the payment reference and upload your receipt at the confirmation page.</p>
+            <p style="color: #666; font-size: 14px; margin-top: 16px;">Please use your booking reference as the payment reference, then upload your receipt using the button below.</p>
+          </div>
+
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${SITE_URL}/book/confirmation/${booking.booking_ref}"
+               style="display: inline-block; background: #0077a8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+              View Booking &amp; Upload Receipt
+            </a>
+            <p style="color: #999; font-size: 12px; margin-top: 8px;">
+              Or copy this link: ${SITE_URL}/book/confirmation/${booking.booking_ref}
+            </p>
           </div>
 
           <p>If you have any questions, please contact us at <a href="mailto:info@celebesexplorer.com" style="color: #0077a8;">info@celebesexplorer.com</a></p>
