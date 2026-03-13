@@ -228,7 +228,7 @@ export default function BookingContent() {
   const steps = ['Trip Details', 'Your Info', 'Payment']
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
+    <div className="min-h-screen bg-gray-50 pt-24 pb-10 px-4">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Book Your Dive Trip</h1>
         <p className="text-gray-500 mb-8">Aboard MV Celebes Explorer</p>
@@ -259,7 +259,7 @@ export default function BookingContent() {
               <h2 className="text-xl font-bold text-gray-900">Trip Details</h2>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Cabin</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Cabin <span className="text-red-500">*</span></label>
                 <select {...register('room_type_id')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent">
                   <option value="">Choose a cabin...</option>
                   {rooms.map(r => (
@@ -270,7 +270,7 @@ export default function BookingContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Package</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Package <span className="text-red-500">*</span></label>
                 <select {...register('package_id')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent">
                   <option value="">Choose a package...</option>
                   {packages.map(p => (
@@ -282,12 +282,12 @@ export default function BookingContent() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-in Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-in Date <span className="text-red-500">*</span></label>
                   <input type="date" {...register('check_in_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
                   {errors.check_in_date && <p className="text-red-500 text-sm mt-1">{errors.check_in_date.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date <span className="text-red-500">*</span></label>
                   <input type="date" {...register('check_out_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
                   {errors.check_out_date && <p className="text-red-500 text-sm mt-1">{errors.check_out_date.message}</p>}
                 </div>
@@ -342,13 +342,13 @@ export default function BookingContent() {
                 <h2 className="text-xl font-bold text-gray-900">Contact Information</h2>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
                   <input {...register('customer_name')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="John Smith" />
                   {errors.customer_name && <p className="text-red-500 text-sm mt-1">{errors.customer_name.message}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address <span className="text-red-500">*</span></label>
                   <input type="email" {...register('customer_email')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="john@example.com" />
                   {errors.customer_email && <p className="text-red-500 text-sm mt-1">{errors.customer_email.message}</p>}
                 </div>
