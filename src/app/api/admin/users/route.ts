@@ -32,9 +32,9 @@ export async function GET() {
   // Fetch all profiles
   const { data: profiles } = await admin.from('profiles').select('*').order('created_at', { ascending: true })
 
-  // Merge email into profiles
-  const emailMap = Object.fromEntries(authUsers.map(u => [u.id, u.email]))
-  const merged = (profiles ?? []).map(p => ({ ...p, email: emailMap[p.id] ?? null }))
+  // Merge email and last_sign_in_at into profiles
+  const authMap = Object.fromEntries(authUsers.map(u => [u.id, { email: u.email, last_sign_in_at: u.last_sign_in_at }]))
+  const merged = (profiles ?? []).map(p => ({ ...p, email: authMap[p.id]?.email ?? null, last_sign_in_at: authMap[p.id]?.last_sign_in_at ?? null }))
 
   return NextResponse.json({ users: merged })
 }

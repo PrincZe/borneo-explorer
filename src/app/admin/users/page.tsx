@@ -9,6 +9,7 @@ type Profile = {
   role: 'company_admin' | 'backend_team' | 'ship_worker'
   created_at: string
   email?: string | null
+  last_sign_in_at?: string | null
 }
 
 const ROLE_OPTIONS = [
@@ -214,6 +215,11 @@ export default function AdminUsersPage() {
                         {profile.full_name ?? 'Unnamed User'}
                       </div>
                       <div className="text-xs text-gray-400 truncate">{profile.email}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {profile.last_sign_in_at
+                          ? `Last login: ${new Date(profile.last_sign_in_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                          : 'Never logged in'}
+                      </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <RoleIcon className="w-3 h-3 text-gray-400" />
                         <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${roleOption.color}`}>
