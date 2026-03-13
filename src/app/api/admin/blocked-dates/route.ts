@@ -20,13 +20,20 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { data, error } = await supabase
-    .from('blocked_dates')
-    .select('*, room_type:room_types(name)')
-    .order('start_date', { ascending: true })
+  const [blockedRes, auditRes] = await Promise.all([
+    supabase
+      .from('blocked_dates')
+      .select('*, room_type:room_types(name)')
+      .order('start_date', { ascending: true }),
+    supabase
+      .from('blocked_dates_audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50),
+  ])
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ blocked_dates: data })
+  if (blockedRes.error) return NextResponse.json({ error: blockedRes.error.message }, { status: 500 })
+  return NextResponse.json({ blocked_dates: blockedRes.data, audit_logs: auditRes.data ?? [] })
 }
 
 export async function POST(request: NextRequest) {
@@ -37,7 +44,7 @@ export async function POST(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, full_name')
     .eq('id', user.id)
     .single()
 
@@ -56,7 +63,6 @@ export async function POST(request: NextRequest) {
     .lt('check_in_date', data.end_date)
     .gt('check_out_date', data.start_date)
 
-  // If blocking a specific room, only check that room; if blocking all, check all rooms
   if (data.room_type_id) {
     conflictQuery = conflictQuery.eq('room_type_id', data.room_type_id)
   }
@@ -71,6 +77,17 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Resolve room type name for audit log
+  let roomTypeName = 'All Cabins'
+  if (data.room_type_id) {
+    const { data: room } = await supabase
+      .from('room_types')
+      .select('name')
+      .eq('id', data.room_type_id)
+      .single()
+    if (room) roomTypeName = room.name
+  }
+
   const { data: blocked, error } = await supabase
     .from('blocked_dates')
     .insert({ ...data, blocked_by: user.id })
@@ -78,5 +95,17 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Write audit log
+  await supabase.from('blocked_dates_audit_logs').insert({
+    action: 'created',
+    room_type_name: roomTypeName,
+    start_date: data.start_date,
+    end_date: data.end_date,
+    reason: data.reason ?? null,
+    performed_by: user.id,
+    performed_by_name: profile.full_name ?? user.email ?? 'Unknown',
+  })
+
   return NextResponse.json({ blocked_date: blocked }, { status: 201 })
 }

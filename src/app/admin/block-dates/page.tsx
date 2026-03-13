@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { Ban, Plus, Trash2, Loader2 } from 'lucide-react'
+import { Ban, Plus, Trash2, Loader2, History } from 'lucide-react'
 
 type RoomType = { id: string; name: string }
 type BlockedDate = {
@@ -15,9 +14,20 @@ type BlockedDate = {
   blocked_by: string | null
   created_at: string
 }
+type AuditLog = {
+  id: string
+  action: string
+  room_type_name: string
+  start_date: string
+  end_date: string
+  reason: string | null
+  performed_by_name: string
+  created_at: string
+}
 
 export default function BlockDatesPage() {
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([])
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -33,20 +43,13 @@ export default function BlockDatesPage() {
   })
 
   const fetchData = useCallback(async () => {
-    const supabase = createClient()
     const [blockedRes, roomsRes] = await Promise.all([
-      supabase
-        .from('blocked_dates')
-        .select('*, room_type:room_types(name)')
-        .order('start_date', { ascending: true }),
-      supabase
-        .from('room_types')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name'),
+      fetch('/api/admin/blocked-dates').then(r => r.json()),
+      fetch('/api/rooms/availability?start=2026-01-01&end=2030-12-31').then(r => r.json()),
     ])
-    setBlockedDates(blockedRes.data ?? [])
-    setRoomTypes(roomsRes.data ?? [])
+    setBlockedDates(blockedRes.blocked_dates ?? [])
+    setAuditLogs(blockedRes.audit_logs ?? [])
+    setRoomTypes(roomsRes.rooms?.map((r: { id: string; name: string }) => ({ id: r.id, name: r.name })) ?? [])
     setLoading(false)
   }, [])
 
@@ -95,8 +98,13 @@ export default function BlockDatesPage() {
     const res = await fetch(`/api/admin/blocked-dates/${id}`, { method: 'DELETE' })
     if (res.ok) {
       setBlockedDates(prev => prev.filter(b => b.id !== id))
+      fetchData()
     }
     setDeletingId(null)
+  }
+
+  function formatDate(d: string) {
+    return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   return (
@@ -194,7 +202,7 @@ export default function BlockDatesPage() {
       </div>
 
       {/* Existing blocks */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm mb-6">
         <div className="p-4 border-b border-gray-100">
           <h2 className="font-semibold text-gray-900">Blocked Periods</h2>
         </div>
@@ -210,9 +218,9 @@ export default function BlockDatesPage() {
                 <div className="text-sm">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-gray-900">
-                      {new Date(block.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {formatDate(block.start_date)}
                       {' → '}
-                      {new Date(block.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {formatDate(block.end_date)}
                     </span>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       block.room_type_id
@@ -237,6 +245,58 @@ export default function BlockDatesPage() {
                     <Trash2 className="w-4 h-4" />
                   )}
                 </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Change history */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        <div className="p-4 border-b border-gray-100 flex items-center gap-2">
+          <History className="w-4 h-4 text-gray-400" />
+          <h2 className="font-semibold text-gray-900">Change History</h2>
+        </div>
+
+        {loading ? (
+          <div className="p-8 text-center text-gray-400 text-sm">Loading...</div>
+        ) : auditLogs.length === 0 ? (
+          <div className="p-8 text-center text-gray-400 text-sm">No changes recorded yet.</div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {auditLogs.map(log => (
+              <div key={log.id} className="flex gap-3 px-4 py-3.5 text-sm">
+                <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${
+                  log.action === 'created' ? 'bg-green-400' : 'bg-red-400'
+                }`} />
+                <div className="flex-1">
+                  <div>
+                    <span className="font-medium text-gray-800">{log.performed_by_name}</span>
+                    <span className="text-gray-500">
+                      {log.action === 'created' ? ' blocked ' : ' unblocked '}
+                      <span className="font-medium text-gray-700">
+                        {formatDate(log.start_date)} → {formatDate(log.end_date)}
+                      </span>
+                      {' for '}
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                        log.room_type_name === 'All Cabins'
+                          ? 'bg-orange-50 text-orange-700'
+                          : 'bg-blue-50 text-blue-700'
+                      }`}>
+                        {log.room_type_name}
+                      </span>
+                    </span>
+                  </div>
+                  {log.reason && (
+                    <div className="text-xs text-gray-400 mt-0.5">Reason: {log.reason}</div>
+                  )}
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {new Date(log.created_at).toLocaleDateString('en-GB', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    })}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
