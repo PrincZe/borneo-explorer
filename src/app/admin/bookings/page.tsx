@@ -42,11 +42,27 @@ const statusBadge = (status: string) => {
   return { cls: map[status] ?? 'bg-gray-100 text-gray-800', label: labels[status] ?? status }
 }
 
+// Build month options: 12 months back + 18 months forward
+function buildMonthOptions() {
+  const options: { value: string; label: string }[] = []
+  const now = new Date()
+  for (let i = -18; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    options.push({ value, label })
+  }
+  return options.sort((a, b) => b.value.localeCompare(a.value))
+}
+
+const MONTH_OPTIONS = buildMonthOptions()
+
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState('all')
+  const [month, setMonth] = useState('')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [loading, setLoading] = useState(true)
@@ -57,13 +73,14 @@ export default function AdminBookingsPage() {
     setLoading(true)
     const params = new URLSearchParams({ page: String(page), status })
     if (search) params.set('search', search)
+    if (month) params.set('month', month)
 
     const res = await fetch(`/api/admin/bookings?${params}`)
     const data = await res.json()
     setBookings(data.bookings ?? [])
     setTotal(data.total ?? 0)
     setLoading(false)
-  }, [page, status, search])
+  }, [page, status, search, month])
 
   useEffect(() => { fetchBookings() }, [fetchBookings])
 
@@ -78,35 +95,63 @@ export default function AdminBookingsPage() {
     setPage(1)
   }
 
+  function handleMonthChange(m: string) {
+    setMonth(m)
+    setPage(1)
+  }
+
   const totalPages = Math.ceil(total / limit)
 
   return (
     <div className="p-6 max-w-7xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-        <p className="text-gray-500 text-sm mt-1">{total} total bookings</p>
+        <p className="text-gray-500 text-sm mt-1">
+          {total} booking{total !== 1 ? 's' : ''}
+          {month ? ` with check-in in ${MONTH_OPTIONS.find(m => m.value === month)?.label ?? month}` : ''}
+        </p>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <form onSubmit={handleSearchSubmit} className="flex gap-2 flex-1">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-              placeholder="Name, email or booking ref..."
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
+      <div className="flex flex-col gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <form onSubmit={handleSearchSubmit} className="flex gap-2 flex-1">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                placeholder="Name, email or booking ref..."
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/80"
+            >
+              Search
+            </button>
+          </form>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={month}
+              onChange={e => handleMonthChange(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+            >
+              <option value="">All months</option>
+              {MONTH_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            {month && (
+              <button onClick={() => handleMonthChange('')} className="text-xs text-gray-400 hover:text-gray-600">
+                Clear
+              </button>
+            )}
           </div>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/80"
-          >
-            Search
-          </button>
-        </form>
+        </div>
 
         <div className="flex gap-1 flex-wrap">
           {STATUS_OPTIONS.map(opt => (

@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
   const search = searchParams.get('search')
+  const month = searchParams.get('month') // format: "YYYY-MM"
   const page = parseInt(searchParams.get('page') || '1')
   const limit = 20
 
@@ -34,6 +35,10 @@ export async function GET(request: NextRequest) {
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1)
+
+  if (month && /^\d{4}-\d{2}$/.test(month)) {
+    query = query.gte('check_in_date', `${month}-01`).lte('check_in_date', `${month}-31`)
+  }
 
   if (status && status !== 'all') {
     query = query.eq('status', status as 'pending_payment' | 'pending_verification' | 'confirmed' | 'cancelled')
