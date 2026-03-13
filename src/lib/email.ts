@@ -2,6 +2,8 @@ import { Resend } from 'resend'
 import type { Booking } from '@/types/database'
 
 const FROM_EMAIL = 'MV Celebes Explorer <bookings@celebesexplorer.com>'
+const ADMIN_FROM_EMAIL = 'MV Celebes Explorer <onboarding@resend.dev>'
+const ADMIN_TO_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL ?? ''
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY)
@@ -75,6 +77,76 @@ export async function sendBookingConfirmationEmail(booking: Booking & {
         </div>
         <div style="background: #333; padding: 16px; text-align: center;">
           <p style="color: #999; font-size: 12px; margin: 0;">MV Celebes Explorer | Semporna, Sabah, Malaysia</p>
+        </div>
+      </div>
+    `,
+  })
+}
+
+export async function sendAdminNewBookingNotification(booking: Booking & {
+  room_type?: { name: string } | null
+  package?: { name: string } | null
+}) {
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.startsWith('re_placeholder')) return
+  if (!ADMIN_TO_EMAIL) return
+
+  await getResend().emails.send({
+    from: ADMIN_FROM_EMAIL,
+    to: ADMIN_TO_EMAIL,
+    subject: `New Booking — ${booking.booking_ref}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #0077a8; padding: 20px 24px;">
+          <h2 style="color: white; margin: 0;">New Booking Received</h2>
+        </div>
+        <div style="padding: 24px; background: #f9f9f9;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr><td style="padding: 6px 0; color: #666; width: 140px;">Booking Ref</td><td style="padding: 6px 0; font-weight: bold;">${booking.booking_ref}</td></tr>
+            <tr><td style="padding: 6px 0; color: #666;">Customer</td><td style="padding: 6px 0;">${booking.customer_name}</td></tr>
+            <tr><td style="padding: 6px 0; color: #666;">Email</td><td style="padding: 6px 0;">${booking.customer_email}</td></tr>
+            ${booking.room_type ? `<tr><td style="padding: 6px 0; color: #666;">Cabin</td><td style="padding: 6px 0;">${booking.room_type.name}</td></tr>` : ''}
+            ${booking.package ? `<tr><td style="padding: 6px 0; color: #666;">Package</td><td style="padding: 6px 0;">${booking.package.name}</td></tr>` : ''}
+            ${booking.check_in_date ? `<tr><td style="padding: 6px 0; color: #666;">Check-in</td><td style="padding: 6px 0;">${booking.check_in_date}</td></tr>` : ''}
+            ${booking.check_out_date ? `<tr><td style="padding: 6px 0; color: #666;">Check-out</td><td style="padding: 6px 0;">${booking.check_out_date}</td></tr>` : ''}
+            <tr><td style="padding: 6px 0; color: #666;">Guests</td><td style="padding: 6px 0;">${booking.num_guests}</td></tr>
+            ${booking.total_amount ? `<tr><td style="padding: 6px 0; color: #666;">Total</td><td style="padding: 6px 0; font-weight: bold; color: #0077a8;">SGD ${booking.total_amount.toLocaleString()}</td></tr>` : ''}
+          </table>
+          <div style="margin-top: 24px;">
+            <a href="${SITE_URL}/admin/bookings/${booking.id}"
+               style="display: inline-block; background: #0077a8; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px;">
+              View in Admin Panel
+            </a>
+          </div>
+        </div>
+      </div>
+    `,
+  })
+}
+
+export async function sendAdminReceiptUploadedNotification(booking: Booking) {
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.startsWith('re_placeholder')) return
+  if (!ADMIN_TO_EMAIL) return
+
+  await getResend().emails.send({
+    from: ADMIN_FROM_EMAIL,
+    to: ADMIN_TO_EMAIL,
+    subject: `Receipt Uploaded — ${booking.booking_ref} (Pending Verification)`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1565c0; padding: 20px 24px;">
+          <h2 style="color: white; margin: 0;">Receipt Uploaded — Action Required</h2>
+        </div>
+        <div style="padding: 24px; background: #f9f9f9;">
+          <p style="font-size: 14px; color: #333;">
+            <strong>${booking.customer_name}</strong> has uploaded a payment receipt for booking
+            <strong>${booking.booking_ref}</strong>. Please verify and confirm or reject the booking.
+          </p>
+          <div style="margin-top: 20px;">
+            <a href="${SITE_URL}/admin/bookings/${booking.id}"
+               style="display: inline-block; background: #1565c0; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px;">
+              Review Receipt
+            </a>
+          </div>
         </div>
       </div>
     `,

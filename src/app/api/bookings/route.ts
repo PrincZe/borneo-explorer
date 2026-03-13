@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
-import { sendBookingConfirmationEmail } from '@/lib/email'
+import { sendBookingConfirmationEmail, sendAdminNewBookingNotification } from '@/lib/email'
 import type { Database } from '@/types/database'
 
 type BookingInsert = Database['public']['Tables']['bookings']['Insert']
@@ -125,8 +125,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Send confirmation email (non-blocking)
-    sendBookingConfirmationEmail(booking as Parameters<typeof sendBookingConfirmationEmail>[0]).catch(console.error)
+    // Send emails (non-blocking)
+    const bookingWithRelations = booking as Parameters<typeof sendBookingConfirmationEmail>[0]
+    sendBookingConfirmationEmail(bookingWithRelations).catch(console.error)
+    sendAdminNewBookingNotification(bookingWithRelations).catch(console.error)
 
     return NextResponse.json({ booking }, { status: 201 })
   } catch (err) {

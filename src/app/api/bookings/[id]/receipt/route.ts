@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { sendAdminReceiptUploadedNotification } from '@/lib/email'
 
 export async function POST(
   request: NextRequest,
@@ -82,6 +83,9 @@ export async function POST(
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
+
+  // Notify admin (non-blocking)
+  sendAdminReceiptUploadedNotification(updatedBooking).catch(console.error)
 
   return NextResponse.json({ booking: updatedBooking })
 }
