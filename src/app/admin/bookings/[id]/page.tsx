@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, User, Mail, Phone, BedDouble, Package2,
-  Calendar, Users, FileText, CheckCircle, XCircle, Clock, ExternalLink, Loader2
+  Calendar, Users, FileText, CheckCircle, XCircle, Clock, ExternalLink, Loader2, History
 } from 'lucide-react'
 
 type BookingDetail = {
@@ -37,6 +37,22 @@ type BookingDetail = {
   updated_at: string
 }
 
+type AuditLog = {
+  id: string
+  changed_by_name: string
+  action: string
+  old_value: string | null
+  new_value: string | null
+  created_at: string
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  pending_payment: 'Pending Payment',
+  pending_verification: 'Pending Verification',
+  confirmed: 'Confirmed',
+  cancelled: 'Cancelled',
+}
+
 const STATUS_OPTIONS = [
   { value: 'pending_payment', label: 'Pending Payment', color: 'text-yellow-700 bg-yellow-50 border-yellow-200' },
   { value: 'pending_verification', label: 'Pending Verification', color: 'text-blue-700 bg-blue-50 border-blue-200' },
@@ -50,6 +66,7 @@ export default function BookingDetailPage() {
   const id = params.id as string
 
   const [booking, setBooking] = useState<BookingDetail | null>(null)
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState('')
@@ -61,6 +78,7 @@ export default function BookingDetailPage() {
     if (!res.ok) { router.push('/admin/bookings'); return }
     const data = await res.json()
     setBooking(data.booking)
+    setAuditLogs(data.auditLogs ?? [])
     setStatus(data.booking.status)
     setAdminNotes(data.booking.admin_notes ?? '')
     setLoading(false)
@@ -265,6 +283,47 @@ export default function BookingDetailPage() {
               <p className="text-sm text-gray-600 whitespace-pre-wrap">{booking.special_requests}</p>
             </div>
           )}
+
+          {/* Audit log */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <History className="w-4 h-4 text-gray-400" />
+              <h2 className="font-semibold text-gray-900">Change History</h2>
+            </div>
+            {auditLogs.length === 0 ? (
+              <p className="text-sm text-gray-400">No changes recorded yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {auditLogs.map((log) => (
+                  <div key={log.id} className="flex gap-3 text-sm">
+                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-800">{log.changed_by_name}</span>
+                      {log.action === 'status_changed' && (
+                        <span className="text-gray-500">
+                          {' '}changed status from{' '}
+                          <span className="font-medium text-gray-700">{STATUS_LABELS[log.old_value ?? ''] ?? log.old_value ?? '—'}</span>
+                          {' '}to{' '}
+                          <span className="font-medium text-gray-700">{STATUS_LABELS[log.new_value ?? ''] ?? log.new_value ?? '—'}</span>
+                        </span>
+                      )}
+                      {log.action === 'notes_updated' && (
+                        <span className="text-gray-500">
+                          {log.old_value ? ' updated admin notes' : ' added admin notes'}
+                        </span>
+                      )}
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {new Date(log.created_at).toLocaleDateString('en-GB', {
+                          day: 'numeric', month: 'short', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Payment receipt */}
           {booking.receipt_signed_url && (

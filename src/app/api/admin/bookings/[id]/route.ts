@@ -27,17 +27,27 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { data: booking, error } = await supabase
-    .from('bookings')
-    .select(`
-      *,
-      room_type:room_types(id, name, slug, bed_type, size_sqm),
-      package:packages(id, name, slug, duration_days, num_dives)
-    `)
-    .eq('id', id)
-    .single()
+  const [bookingResult, auditResult] = await Promise.all([
+    supabase
+      .from('bookings')
+      .select(`
+        *,
+        room_type:room_types(id, name, slug, bed_type, size_sqm),
+        package:packages(id, name, slug, duration_days, num_dives)
+      `)
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('booking_audit_logs')
+      .select('*')
+      .eq('booking_id', id)
+      .order('created_at', { ascending: false }),
+  ])
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 404 })
+  if (bookingResult.error) return NextResponse.json({ error: bookingResult.error.message }, { status: 404 })
+
+  const booking = bookingResult.data
+  const auditLogs = auditResult.data ?? []
 
   // Generate signed URL for receipt using admin client (service role)
   let receiptSignedUrl: string | null = null
@@ -53,7 +63,7 @@ export async function GET(
     receiptSignedUrl = data?.signedUrl ?? null
   }
 
-  return NextResponse.json({ booking: { ...booking, receipt_signed_url: receiptSignedUrl } })
+  return NextResponse.json({ booking: { ...booking, receipt_signed_url: receiptSignedUrl }, auditLogs })
 }
 
 export async function PATCH(
@@ -68,7 +78,7 @@ export async function PATCH(
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, full_name')
     .eq('id', user.id)
     .single()
 
@@ -79,18 +89,19 @@ export async function PATCH(
   const body = await request.json()
   const updates = updateSchema.parse(body)
 
+  // Fetch current booking to compare old values for audit log
+  const { data: currentBooking } = await supabase
+    .from('bookings')
+    .select('status, admin_notes, total_amount, promo_code_id')
+    .eq('id', id)
+    .single()
+
   const updateData: BookingUpdate = { ...updates }
   if (updates.status === 'confirmed') {
     updateData.verified_by = user.id
     updateData.verified_at = new Date().toISOString()
 
     // Calculate affiliate commission on confirmation
-    const { data: currentBooking } = await supabase
-      .from('bookings')
-      .select('total_amount, promo_code_id')
-      .eq('id', id)
-      .single()
-
     if (currentBooking?.promo_code_id && currentBooking?.total_amount) {
       const { data: promo } = await supabase
         .from('promo_codes')
@@ -111,6 +122,36 @@ export async function PATCH(
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Write audit log entries for each changed field
+  const changedByName = profile.full_name ?? user.email ?? 'Unknown'
+  const auditEntries = []
+
+  if (updates.status !== undefined && updates.status !== currentBooking?.status) {
+    auditEntries.push({
+      booking_id: id,
+      changed_by: user.id,
+      changed_by_name: changedByName,
+      action: 'status_changed',
+      old_value: currentBooking?.status ?? null,
+      new_value: updates.status,
+    })
+  }
+
+  if (updates.admin_notes !== undefined && updates.admin_notes !== currentBooking?.admin_notes) {
+    auditEntries.push({
+      booking_id: id,
+      changed_by: user.id,
+      changed_by_name: changedByName,
+      action: 'notes_updated',
+      old_value: currentBooking?.admin_notes ?? null,
+      new_value: updates.admin_notes || null,
+    })
+  }
+
+  if (auditEntries.length > 0) {
+    await supabase.from('booking_audit_logs').insert(auditEntries)
+  }
 
   // Send status email if status changed to confirmed or cancelled
   if (updates.status === 'confirmed' || updates.status === 'cancelled') {

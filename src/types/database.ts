@@ -9,6 +9,38 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      booking_audit_logs: {
+        Row: {
+          id: string
+          booking_id: string
+          changed_by: string | null
+          changed_by_name: string
+          action: string
+          old_value: string | null
+          new_value: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          changed_by?: string | null
+          changed_by_name: string
+          action: string
+          old_value?: string | null
+          new_value?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          booking_id?: string
+          changed_by?: string | null
+          changed_by_name?: string
+          action?: string
+          old_value?: string | null
+          new_value?: string | null
+          created_at?: string
+        }
+      }
       profiles: {
         Row: {
           id: string
