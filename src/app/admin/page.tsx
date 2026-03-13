@@ -70,16 +70,25 @@ export default async function AdminDashboard({ searchParams }: Props) {
     }
   }
 
-  // Build last 12 months sorted descending
+  // Build 12 months back + 18 months forward, sorted descending (future first)
   const now = new Date()
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const monthRows = []
-  for (let i = 0; i < 12; i++) {
+  for (let i = -18; i <= 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     const label = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
     monthRows.push({ key, label, ...(monthMap[key] ?? { bookings: 0, revenue: 0, confirmed: 0 }) })
   }
-  const maxBookings = Math.max(...monthRows.map(m => m.bookings), 1)
+  // Only show months with bookings + the next 3 future months always visible
+  const upcomingKeys = new Set(
+    Array.from({ length: 3 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    })
+  )
+  const visibleMonthRows = monthRows.filter(r => r.bookings > 0 || r.key === currentMonthKey || upcomingKeys.has(r.key))
+  const maxBookings = Math.max(...visibleMonthRows.map(m => m.bookings), 1)
 
   // Recent bookings filtered to selected month
   let recentQuery = supabase
@@ -182,28 +191,44 @@ export default async function AdminDashboard({ searchParams }: Props) {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
         <div className="p-5 border-b border-gray-100">
           <h2 className="font-semibold text-gray-900">Bookings by Month (check-in date)</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Last 12 months — click a month to filter</p>
+          <p className="text-xs text-gray-400 mt-0.5">Past &amp; future — click any month to filter the stats above</p>
         </div>
         <div className="divide-y divide-gray-50">
-          {monthRows.map(row => (
-            <Link
-              key={row.key}
-              href={row.bookings > 0 ? `/admin?month=${row.key}` : '/admin'}
-              className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${month === row.key ? 'bg-primary/5' : ''}`}
-            >
-              <div className="w-32 text-sm font-medium text-gray-700 flex-shrink-0">{row.label}</div>
-              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all"
-                  style={{ width: `${(row.bookings / maxBookings) * 100}%` }}
-                />
-              </div>
-              <div className="w-6 text-sm font-bold text-gray-900 text-right flex-shrink-0">{row.bookings}</div>
-              <div className="w-28 text-xs text-gray-400 text-right flex-shrink-0">
-                {row.confirmed > 0 ? `SGD ${row.revenue.toLocaleString()}` : '—'}
-              </div>
-            </Link>
-          ))}
+          {visibleMonthRows.map(row => {
+            const isCurrentMonth = row.key === currentMonthKey
+            const isFuture = row.key > currentMonthKey
+            return (
+              <Link
+                key={row.key}
+                href={`/admin?month=${row.key}`}
+                className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${month === row.key ? 'bg-primary/5' : ''}`}
+              >
+                <div className="w-36 flex-shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-sm font-medium ${isCurrentMonth ? 'text-primary' : 'text-gray-700'}`}>
+                      {row.label}
+                    </span>
+                    {isCurrentMonth && (
+                      <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">Now</span>
+                    )}
+                    {isFuture && row.bookings === 0 && (
+                      <span className="text-xs text-gray-300">upcoming</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${isFuture ? 'bg-accent/70' : 'bg-primary'}`}
+                    style={{ width: `${(row.bookings / maxBookings) * 100}%` }}
+                  />
+                </div>
+                <div className="w-6 text-sm font-bold text-gray-900 text-right flex-shrink-0">{row.bookings}</div>
+                <div className="w-28 text-xs text-gray-400 text-right flex-shrink-0">
+                  {row.confirmed > 0 ? `SGD ${row.revenue.toLocaleString()}` : '—'}
+                </div>
+              </Link>
+            )
+          })}
         </div>
       </div>
 

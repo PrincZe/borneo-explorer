@@ -7,15 +7,17 @@ export default function DashboardFilter() {
   const searchParams = useSearchParams()
   const current = searchParams.get('month') ?? ''
 
-  // Build last 24 months as options
+  // Build 12 months back + 18 months forward
   const months: { value: string; label: string }[] = []
   const now = new Date()
-  for (let i = 0; i < 24; i++) {
+  for (let i = -18; i <= 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     const label = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
     months.push({ value, label })
   }
+  // Sort chronologically descending (future first)
+  months.sort((a, b) => b.value.localeCompare(a.value))
 
   function handleChange(value: string) {
     const params = new URLSearchParams()
