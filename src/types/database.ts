@@ -40,6 +40,7 @@ export type Database = {
           new_value?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       profiles: {
         Row: {
