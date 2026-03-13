@@ -365,7 +365,7 @@ export default function BookingDetailPage() {
                 Email Customer
               </a>
               <Link
-                href={`/book/confirmation/${booking.booking_ref}`}
+                href={`/book/confirmation/${booking.id}`}
                 target="_blank"
                 className="flex items-center gap-2 text-sm text-gray-600 hover:text-primary transition-colors"
               >
