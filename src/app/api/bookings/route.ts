@@ -45,6 +45,22 @@ export async function POST(request: NextRequest) {
       .eq('package_id', data.package_id)
       .single()
 
+    // Validate dates
+    if (data.check_in_date && data.check_out_date && data.check_out_date <= data.check_in_date) {
+      return NextResponse.json({ error: 'Check-out date must be after check-in date' }, { status: 400 })
+    }
+
+    // Validate guest count against room capacity
+    const { data: roomType } = await supabase
+      .from('room_types')
+      .select('max_occupancy')
+      .eq('id', data.room_type_id)
+      .single()
+
+    if (roomType && data.num_guests > roomType.max_occupancy) {
+      return NextResponse.json({ error: `This cabin fits a maximum of ${roomType.max_occupancy} guests` }, { status: 400 })
+    }
+
     const basePrice = (pricing?.price_override ?? (pricing?.packages as { price_per_person: number } | null)?.price_per_person ?? 0)
     const addOnsTotal = data.add_ons.reduce((sum, a) => sum + a.price, 0)
     const subtotal = (basePrice * data.num_guests) + addOnsTotal

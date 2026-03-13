@@ -55,6 +55,9 @@ export default function BookingContent() {
   const [uploading, setUploading] = useState(false)
   const [uploadDone, setUploadDone] = useState(false)
 
+  // Step 1 custom validation errors
+  const [step1Errors, setStep1Errors] = useState<{ date?: string; guests?: string }>({})
+
   // Promo code state
   const [promoInput, setPromoInput] = useState('')
   const [promoStatus, setPromoStatus] = useState<'idle' | 'valid' | 'invalid' | 'checking'>('idle')
@@ -155,7 +158,21 @@ export default function BookingContent() {
       'room_type_id', 'package_id', 'check_in_date', 'check_out_date',
       'num_guests', 'certification_level', 'logged_dives', 'nitrox_required', 'equipment_rental',
     ])
-    if (valid) setStep(2)
+
+    const customErrors: { date?: string; guests?: string } = {}
+    const checkIn = watch('check_in_date')
+    const checkOut = watch('check_out_date')
+    const numGuests = watch('num_guests')
+
+    if (checkIn && checkOut && checkOut <= checkIn) {
+      customErrors.date = 'Check-out date must be after check-in date'
+    }
+    if (selectedRoom && numGuests > selectedRoom.max_occupancy) {
+      customErrors.guests = `This cabin fits a maximum of ${selectedRoom.max_occupancy} guest${selectedRoom.max_occupancy !== 1 ? 's' : ''}`
+    }
+    setStep1Errors(customErrors)
+
+    if (valid && Object.keys(customErrors).length === 0) setStep(2)
   }
 
   async function onSubmit(data: FormData) {
@@ -275,11 +292,14 @@ export default function BookingContent() {
                   {errors.check_out_date && <p className="text-red-500 text-sm mt-1">{errors.check_out_date.message}</p>}
                 </div>
               </div>
+              {step1Errors.date && <p className="text-red-500 text-sm">{step1Errors.date}</p>}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests</label>
                 <input type="number" min={1} max={10} {...register('num_guests', { valueAsNumber: true })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
+                {step1Errors.guests && <p className="text-red-500 text-sm mt-1">{step1Errors.guests}</p>}
+                {selectedRoom && <p className="text-xs text-gray-400 mt-1">Max {selectedRoom.max_occupancy} guest{selectedRoom.max_occupancy !== 1 ? 's' : ''} for this cabin</p>}
               </div>
 
               <div>
