@@ -48,6 +48,29 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const data = blockSchema.parse(body)
 
+  // Check for confirmed/pending_verification bookings that overlap the date range
+  let conflictQuery = supabase
+    .from('bookings')
+    .select('booking_ref, customer_name, check_in_date, check_out_date, room_type_id')
+    .in('status', ['confirmed', 'pending_verification'])
+    .lt('check_in_date', data.end_date)
+    .gt('check_out_date', data.start_date)
+
+  // If blocking a specific room, only check that room; if blocking all, check all rooms
+  if (data.room_type_id) {
+    conflictQuery = conflictQuery.eq('room_type_id', data.room_type_id)
+  }
+
+  const { data: conflicts } = await conflictQuery
+
+  if (conflicts && conflicts.length > 0) {
+    const refs = conflicts.map(b => b.booking_ref).join(', ')
+    return NextResponse.json(
+      { error: `Cannot block these dates — ${conflicts.length} active booking(s) exist in this period: ${refs}` },
+      { status: 409 }
+    )
+  }
+
   const { data: blocked, error } = await supabase
     .from('blocked_dates')
     .insert({ ...data, blocked_by: user.id })
