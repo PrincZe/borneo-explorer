@@ -9,7 +9,7 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
 } from "@/components/ui/navigation-menu"
-import { Ship, Menu, X } from 'lucide-react'
+import { Ship, Menu, X, User } from 'lucide-react'
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -33,7 +33,8 @@ const Header = () => {
     { name: 'Availability', path: '/availability' },
     { name: 'Gallery', path: '/gallery' },
     { name: 'Getting Here', path: '/getting-here' },
-    { name: 'Book Now', path: '/book' }
+    { name: 'Book Now', path: '/book' },
+    { name: 'My Account', path: '/account' },
   ]
 
   const headerBg = isHome && !scrolled
@@ -60,11 +61,14 @@ const Header = () => {
                         className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                           item.name === 'Book Now'
                             ? 'bg-accent text-white hover:bg-accent/80 px-5'
-                            : pathname === item.path
-                              ? 'bg-white/20'
-                              : 'hover:bg-white/10'
+                            : item.name === 'My Account'
+                              ? 'bg-white/10 hover:bg-white/20 flex items-center gap-1.5'
+                              : pathname === item.path
+                                ? 'bg-white/20'
+                                : 'hover:bg-white/10'
                         }`}
                       >
+                        {item.name === 'My Account' && <User className="w-3.5 h-3.5" />}
                         {item.name}
                       </NavigationMenuLink>
                     </Link>
@@ -103,12 +107,15 @@ const Header = () => {
                     className={`block px-4 py-3 rounded-md transition-colors duration-200 ${
                       item.name === 'Book Now'
                         ? 'bg-accent text-white hover:bg-accent/80 text-center font-bold mt-2'
-                        : pathname === item.path
-                          ? 'bg-white/20'
-                          : 'hover:bg-white/10'
+                        : item.name === 'My Account'
+                          ? 'bg-white/10 hover:bg-white/20 flex items-center gap-2'
+                          : pathname === item.path
+                            ? 'bg-white/20'
+                            : 'hover:bg-white/10'
                     }`}
                     onClick={() => setIsOpen(false)}
                   >
+                    {item.name === 'My Account' && <User className="w-4 h-4" />}
                     {item.name}
                   </Link>
                 </li>

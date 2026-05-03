@@ -9,15 +9,17 @@ import RefTracker from './RefTracker'
 export default function PublicShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAdmin = pathname.startsWith('/admin')
+  const isAccount = pathname.startsWith('/account')
+  const hideChrome = isAdmin || isAccount
 
   return (
     <>
       <Suspense fallback={null}>
         <RefTracker />
       </Suspense>
-      {!isAdmin && <Header />}
+      {!hideChrome && <Header />}
       <main>{children}</main>
-      {!isAdmin && <Footer />}
+      {!hideChrome && <Footer />}
     </>
   )
 }

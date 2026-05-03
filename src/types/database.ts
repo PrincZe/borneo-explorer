@@ -82,19 +82,19 @@ export type Database = {
         Row: {
           id: string
           full_name: string | null
-          role: 'company_admin' | 'backend_team' | 'ship_worker'
+          role: 'company_admin' | 'backend_team' | 'ship_worker' | 'customer'
           created_at: string
         }
         Insert: {
           id: string
           full_name?: string | null
-          role?: 'company_admin' | 'backend_team' | 'ship_worker'
+          role?: 'company_admin' | 'backend_team' | 'ship_worker' | 'customer'
           created_at?: string
         }
         Update: {
           id?: string
           full_name?: string | null
-          role?: 'company_admin' | 'backend_team' | 'ship_worker'
+          role?: 'company_admin' | 'backend_team' | 'ship_worker' | 'customer'
           created_at?: string
         }
         Relationships: []
@@ -260,6 +260,7 @@ export type Database = {
           customer_name: string
           customer_email: string
           customer_phone: string | null
+          customer_user_id: string | null
           room_type_id: string | null
           package_id: string | null
           check_in_date: string | null
@@ -290,6 +291,7 @@ export type Database = {
           customer_name: string
           customer_email: string
           customer_phone?: string | null
+          customer_user_id?: string | null
           room_type_id?: string | null
           package_id?: string | null
           check_in_date?: string | null
@@ -320,6 +322,7 @@ export type Database = {
           customer_name?: string
           customer_email?: string
           customer_phone?: string | null
+          customer_user_id?: string | null
           room_type_id?: string | null
           package_id?: string | null
           check_in_date?: string | null
@@ -477,7 +480,14 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      customer_loyalty_nights: {
+        Row: {
+          customer_user_id: string | null
+          total_bookings: number
+          confirmed_nights: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
@@ -498,3 +508,4 @@ export type Booking = Database['public']['Tables']['bookings']['Row']
 export type BlockedDate = Database['public']['Tables']['blocked_dates']['Row']
 export type Affiliate = Database['public']['Tables']['affiliates']['Row']
 export type PromoCode = Database['public']['Tables']['promo_codes']['Row']
+export type CustomerLoyaltyNights = Database['public']['Views']['customer_loyalty_nights']['Row']
