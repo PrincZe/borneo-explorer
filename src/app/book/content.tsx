@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Upload, CheckCircle, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import type { RoomType, Package, AddOnOption } from '@/types/database'
 
 const step1Schema = z.object({
@@ -95,6 +96,26 @@ export default function BookingContent() {
   }, [roomSlug, setValue])
 
   useEffect(() => { loadInitialData() }, [loadInitialData])
+
+  // Auto-fill customer info from logged-in user's profile
+  useEffect(() => {
+    async function prefillFromUser() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.full_name) setValue('customer_name', profile.full_name)
+      if (user.email) setValue('customer_email', user.email)
+      if (user.phone) setValue('customer_phone', user.phone)
+    }
+    prefillFromUser()
+  }, [setValue])
 
   // Auto-detect ref_code cookie on mount
   useEffect(() => {
