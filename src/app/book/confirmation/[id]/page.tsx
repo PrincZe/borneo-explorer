@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCircle, Clock, XCircle, Mail, Calendar, Users, BedDouble } from 'lucide-react'
@@ -50,7 +50,11 @@ const statusConfig = {
 
 export default async function ConfirmationPage({ params }: Props) {
   const { id } = await params
-  const supabase = await createClient()
+  const supabase = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
 
   const { data: bookingRaw, error } = await supabase
     .from('bookings')

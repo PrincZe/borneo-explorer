@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { sendAdminReceiptUploadedNotification } from '@/lib/email'
 
@@ -27,10 +26,16 @@ export async function POST(
     return NextResponse.json({ error: 'File size must be under 5MB' }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  // Use admin client (service role) for all DB operations — this is a public
+  // endpoint secured by requiring knowledge of the booking UUID.
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
 
   // Verify booking exists
-  const { data: booking, error: bookingError } = await supabase
+  const { data: booking, error: bookingError } = await adminClient
     .from('bookings')
     .select('id, booking_ref, status')
     .eq('id', id)
@@ -43,13 +48,6 @@ export async function POST(
   if (booking.status !== 'pending_payment') {
     return NextResponse.json({ error: 'Receipt can only be uploaded for bookings awaiting payment' }, { status: 400 })
   }
-
-  // Use admin client (service role) for storage upload — bypasses RLS safely on server
-  const adminClient = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
-  )
 
   const fileExt = file.name.split('.').pop()
   const fileName = `${booking.booking_ref}-${Date.now()}.${fileExt}`
@@ -69,8 +67,7 @@ export async function POST(
 
   const receiptUrl = uploadData.path
 
-  // Update booking status (use regular client — RLS allows public update)
-  const { data: updatedBooking, error: updateError } = await supabase
+  const { data: updatedBooking, error: updateError } = await adminClient
     .from('bookings')
     .update({
       payment_receipt_url: receiptUrl,
