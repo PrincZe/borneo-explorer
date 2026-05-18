@@ -33,6 +33,8 @@ export async function middleware(request: NextRequest) {
   const isAccountPath = path.startsWith('/account')
   const isAccountLogin = path === '/account/login'
   const isAccountSignup = path === '/account/signup'
+  const isAccountForgotPassword = path === '/account/forgot-password'
+  const isAccountResetPassword = path === '/account/reset-password'
 
   // --- Admin guard ---
   if (isAdminPath && !isAdminLogin) {
@@ -56,7 +58,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // --- Customer account guard ---
-  if (isAccountPath && !isAccountLogin && !isAccountSignup) {
+  if (isAccountPath && !isAccountLogin && !isAccountSignup && !isAccountForgotPassword && !isAccountResetPassword) {
     if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/account/login'
@@ -85,7 +87,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect logged-in customers away from login/signup
-  if ((isAccountLogin || isAccountSignup) && user) {
+  if ((isAccountLogin || isAccountSignup || isAccountForgotPassword) && user) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')

@@ -75,4 +75,6 @@ FROM public.bookings b
 WHERE b.customer_user_id IS NOT NULL
 GROUP BY b.customer_user_id;
 
+ALTER VIEW public.customer_loyalty_nights SET (security_invoker = on);
+
 GRANT SELECT ON public.customer_loyalty_nights TO authenticated;
