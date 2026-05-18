@@ -1,5 +1,6 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
+import StripeRetryButton from './StripeRetryButton'
 import Link from 'next/link'
 import { CheckCircle, Clock, XCircle, Mail, Calendar, Users, BedDouble } from 'lucide-react'
 import type { Booking } from '@/types/database'
@@ -11,6 +12,7 @@ type BookingWithRelations = Booking & {
 
 interface Props {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ payment?: string }>
 }
 
 const statusConfig = {
@@ -48,8 +50,9 @@ const statusConfig = {
   },
 }
 
-export default async function ConfirmationPage({ params }: Props) {
+export default async function ConfirmationPage({ params, searchParams }: Props) {
   const { id } = await params
+  const { payment } = await searchParams
   const supabase = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -70,7 +73,12 @@ export default async function ConfirmationPage({ params }: Props) {
 
   const booking = bookingRaw as BookingWithRelations
 
-  const config = statusConfig[booking.status as keyof typeof statusConfig] ?? statusConfig.pending_payment
+  const isStripe = booking.payment_method === 'stripe'
+  const stripeProcessing = isStripe && payment === 'success' && booking.status === 'pending_payment'
+
+  const config = stripeProcessing
+    ? { icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', label: 'Processing Payment', message: 'Your payment was received and is being processed. This page will update shortly — you\'ll also receive a confirmation email.' }
+    : (statusConfig[booking.status as keyof typeof statusConfig] ?? statusConfig.pending_payment)
   const StatusIcon = config.icon
 
   return (
@@ -139,8 +147,8 @@ export default async function ConfirmationPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Upload receipt CTA if still pending payment */}
-        {booking.status === 'pending_payment' && (
+        {/* Bank transfer: show payment instructions */}
+        {booking.status === 'pending_payment' && !isStripe && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-6">
             <h3 className="font-semibold text-yellow-800 mb-2">Complete Your Payment</h3>
             <p className="text-sm text-yellow-700 mb-3">
@@ -158,6 +166,17 @@ export default async function ConfirmationPage({ params }: Props) {
             >
               Upload Receipt
             </Link>
+          </div>
+        )}
+
+        {/* Stripe: payment cancelled — show retry option */}
+        {booking.status === 'pending_payment' && isStripe && payment === 'cancelled' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-6">
+            <h3 className="font-semibold text-yellow-800 mb-2">Payment Cancelled</h3>
+            <p className="text-sm text-yellow-700 mb-3">
+              Your payment was not completed. You can try again or contact us for assistance.
+            </p>
+            <StripeRetryButton bookingId={booking.id} />
           </div>
         )}
 

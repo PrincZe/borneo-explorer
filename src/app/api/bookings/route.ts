@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { stripe } from '@/lib/stripe'
 import { sendBookingConfirmationEmail, sendAdminNewBookingNotification } from '@/lib/email'
 import type { Database } from '@/types/database'
 
@@ -27,7 +28,7 @@ const bookingSchema = z.object({
   })).default([]),
   special_requests: z.string().optional(),
   promo_code: z.string().optional(),
-  // total_amount is calculated server-side — client value ignored
+  payment_method: z.enum(['bank_transfer', 'stripe']).default('bank_transfer'),
 })
 
 export async function POST(request: NextRequest) {
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
       ...data,
       booking_ref: '',
       status: 'pending_payment',
-      payment_method: 'bank_transfer',
+      payment_method: data.payment_method,
       add_ons: data.add_ons as unknown as BookingInsert['add_ons'],
       total_amount: calculatedTotal,
       promo_code_id: promoCodeId,
@@ -130,7 +131,41 @@ export async function POST(request: NextRequest) {
     sendBookingConfirmationEmail(bookingWithRelations).catch(console.error)
     sendAdminNewBookingNotification(bookingWithRelations).catch(console.error)
 
-    return NextResponse.json({ booking }, { status: 201 })
+    // Create Stripe Checkout Session if paying by card
+    let checkoutUrl: string | null = null
+
+    if (data.payment_method === 'stripe') {
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        currency: 'sgd',
+        customer_email: data.customer_email,
+        line_items: [{
+          price_data: {
+            currency: 'sgd',
+            product_data: {
+              name: `Dive Booking ${booking.booking_ref}`,
+              description: [
+                booking.room_type?.name,
+                booking.package?.name,
+                `${data.num_guests} guest${data.num_guests > 1 ? 's' : ''}`,
+              ].filter(Boolean).join(' — '),
+            },
+            unit_amount: Math.round(calculatedTotal * 100),
+          },
+          quantity: 1,
+        }],
+        metadata: {
+          booking_id: booking.id,
+          booking_ref: booking.booking_ref,
+        },
+        success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/book/confirmation/${booking.id}?payment=success`,
+        cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/book/confirmation/${booking.id}?payment=cancelled`,
+      })
+      checkoutUrl = session.url
+    }
+
+    return NextResponse.json({ booking, checkoutUrl }, { status: 201 })
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: err.issues }, { status: 400 })

@@ -50,6 +50,7 @@ export default function BookingContent() {
   const [packages, setPackages] = useState<Package[]>([])
   const [addOns, setAddOns] = useState<AddOnOption[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'bank_transfer'>('stripe')
   const [bookingId, setBookingId] = useState<string | null>(null)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -209,12 +210,18 @@ export default function BookingContent() {
         body: JSON.stringify({
           ...data,
           add_ons: addOnItems,
+          payment_method: paymentMethod,
           ...(promoData && promoStatus === 'valid' ? { promo_code: promoData.code } : {}),
         }),
       })
 
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Booking failed')
+
+      if (json.checkoutUrl) {
+        window.location.href = json.checkoutUrl
+        return
+      }
 
       setBookingId(json.booking.id)
       setStep(3)
@@ -479,6 +486,37 @@ export default function BookingContent() {
                 </div>
               )}
 
+              {/* Payment Method */}
+              <div className="bg-white rounded-2xl shadow p-5">
+                <h3 className="font-semibold text-gray-900 mb-3">Payment Method</h3>
+                <div className="space-y-2">
+                  <label className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-colors ${
+                    paymentMethod === 'stripe' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input type="radio" name="payment_method" value="stripe"
+                      checked={paymentMethod === 'stripe'}
+                      onChange={() => setPaymentMethod('stripe')}
+                      className="w-4 h-4 accent-primary" />
+                    <div>
+                      <span className="font-medium text-gray-900">Pay with Card</span>
+                      <p className="text-xs text-gray-500">Visa, Mastercard, AMEX — instant confirmation</p>
+                    </div>
+                  </label>
+                  <label className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-colors ${
+                    paymentMethod === 'bank_transfer' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input type="radio" name="payment_method" value="bank_transfer"
+                      checked={paymentMethod === 'bank_transfer'}
+                      onChange={() => setPaymentMethod('bank_transfer')}
+                      className="w-4 h-4 accent-primary" />
+                    <div>
+                      <span className="font-medium text-gray-900">Bank Transfer</span>
+                      <p className="text-xs text-gray-500">Manual transfer — verification within 24 hours</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
               <div className="flex gap-3">
                 <button type="button" onClick={() => setStep(1)}
                   className="flex-1 flex items-center justify-center gap-2 border border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors">
@@ -487,7 +525,7 @@ export default function BookingContent() {
                 <button type="submit" disabled={submitting}
                   className="flex-1 flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/80 disabled:opacity-50 transition-colors">
                   {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                  {submitting ? 'Creating Booking...' : 'Continue to Payment'}
+                  {submitting ? 'Processing...' : paymentMethod === 'stripe' ? 'Pay with Card' : 'Continue to Payment'}
                   {!submitting && <ChevronRight className="w-5 h-5" />}
                 </button>
               </div>
