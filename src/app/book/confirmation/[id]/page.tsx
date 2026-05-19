@@ -1,4 +1,5 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import StripeRetryButton from './StripeRetryButton'
 import Link from 'next/link'
@@ -72,6 +73,9 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
   if (error || !bookingRaw) notFound()
 
   const booking = bookingRaw as BookingWithRelations
+
+  const userSupabase = await createClient()
+  const { data: { user } } = await userSupabase.auth.getUser()
 
   const isStripe = booking.payment_method === 'stripe'
   const stripeProcessing = isStripe && payment === 'success' && booking.status === 'pending_payment'
@@ -180,27 +184,29 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
           </div>
         )}
 
-        {/* Account sign-up prompt */}
-        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 mb-6">
-          <h3 className="font-semibold text-primary mb-1">Track this booking online</h3>
-          <p className="text-sm text-gray-600 mb-3">
-            Create a free account with <strong>{booking.customer_email}</strong> to view your booking status, receipts, and loyalty rewards — all in one place.
-          </p>
-          <div className="flex gap-3">
-            <Link
-              href="/account/signup"
-              className="flex-1 text-center bg-primary text-white py-2 rounded-lg text-sm font-semibold hover:bg-primary/80 transition-colors"
-            >
-              Create account
-            </Link>
-            <Link
-              href="/account/login"
-              className="flex-1 text-center border border-primary text-primary py-2 rounded-lg text-sm font-semibold hover:bg-primary/5 transition-colors"
-            >
-              Sign in
-            </Link>
+        {/* Account sign-up prompt — only show if not logged in */}
+        {!user && (
+          <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 mb-6">
+            <h3 className="font-semibold text-primary mb-1">Track this booking online</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Create a free account with <strong>{booking.customer_email}</strong> to view your booking status, receipts, and loyalty rewards — all in one place.
+            </p>
+            <div className="flex gap-3">
+              <Link
+                href="/account/signup"
+                className="flex-1 text-center bg-primary text-white py-2 rounded-lg text-sm font-semibold hover:bg-primary/80 transition-colors"
+              >
+                Create account
+              </Link>
+              <Link
+                href="/account/login"
+                className="flex-1 text-center border border-primary text-primary py-2 rounded-lg text-sm font-semibold hover:bg-primary/5 transition-colors"
+              >
+                Sign in
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="text-center">
           <Link href="/" className="text-primary hover:underline text-sm">← Back to Homepage</Link>
