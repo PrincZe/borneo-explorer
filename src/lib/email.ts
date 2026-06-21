@@ -9,7 +9,7 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY)
 }
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://borneo-explorer-chi.vercel.app'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.liveaboardsipadan.com'
 
 export async function sendBookingConfirmationEmail(booking: Booking & {
   room_type?: { name: string } | null
