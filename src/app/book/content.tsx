@@ -11,7 +11,7 @@ import type { RoomType, Package, AddOnOption } from '@/types/database'
 import { useCurrency } from '@/components/CurrencyProvider'
 
 const step1Schema = z.object({
-  room_type_id: z.string().min(1, 'Please select a cabin'),
+  room_type_id: z.string().optional(),
   package_id: z.string().min(1, 'Please select a package'),
   check_in_date: z.string().min(1, 'Check-in date required'),
   check_out_date: z.string().min(1, 'Check-out date required'),
@@ -58,8 +58,11 @@ export default function BookingContent() {
   const [uploading, setUploading] = useState(false)
   const [uploadDone, setUploadDone] = useState(false)
 
+  // Multi-cabin state
+  const [selectedCabins, setSelectedCabins] = useState<string[]>(roomSlug ? [''] : [''])
+
   // Step 1 custom validation errors
-  const [step1Errors, setStep1Errors] = useState<{ date?: string; guests?: string }>({})
+  const [step1Errors, setStep1Errors] = useState<{ date?: string; guests?: string; cabins?: string }>({})
 
   // Promo code state
   const [promoInput, setPromoInput] = useState('')
@@ -78,7 +81,6 @@ export default function BookingContent() {
     }
   })
 
-  const selectedRoomId = watch('room_type_id')
   const selectedPackageId = watch('package_id')
   const selectedAddons = watch('selected_addons') ?? []
 
@@ -94,11 +96,27 @@ export default function BookingContent() {
 
     if (roomSlug) {
       const room = (roomData.rooms || []).find((r: RoomType) => r.slug === roomSlug)
-      if (room) setValue('room_type_id', room.id)
+      if (room) {
+        setValue('room_type_id', room.id)
+        setSelectedCabins([room.id])
+      }
     }
   }, [roomSlug, setValue])
 
   useEffect(() => { loadInitialData() }, [loadInitialData])
+
+  // Auto-adjust cabin count based on guests (max 2 per cabin)
+  const watchGuests = watch('num_guests') ?? 1
+  const minCabinsNeeded = Math.ceil(watchGuests / 2)
+
+  useEffect(() => {
+    setSelectedCabins(prev => {
+      if (prev.length < minCabinsNeeded) {
+        return [...prev, ...Array(minCabinsNeeded - prev.length).fill('')]
+      }
+      return prev
+    })
+  }, [minCabinsNeeded])
 
   // Auto-fill customer info from logged-in user's profile
   useEffect(() => {
@@ -174,7 +192,12 @@ export default function BookingContent() {
     }
   }, [watchCheckIn, watchCheckOut, packages, packageSlug, isDayTrip, nights, setValue])
 
-  const selectedRoom = rooms.find(r => r.id === selectedRoomId)
+  const selectedRoom = selectedCabins[0] ? rooms.find(r => r.id === selectedCabins[0]) : undefined
+  const allCabinsSelected = selectedCabins.length >= minCabinsNeeded && selectedCabins.every(c => c !== '')
+  const totalCabinCapacity = selectedCabins.filter(c => c).reduce((sum, cId) => {
+    const room = rooms.find(r => r.id === cId)
+    return sum + (room?.max_occupancy ?? 0)
+  }, 0)
   const selectedPackage = packages.find(p => p.id === selectedPackageId)
 
   function calcSubtotal() {
@@ -205,7 +228,7 @@ export default function BookingContent() {
       'num_guests', 'nitrox_required', 'equipment_rental',
     ])
 
-    const customErrors: { date?: string; guests?: string } = {}
+    const customErrors: { date?: string; guests?: string; cabins?: string } = {}
     const checkIn = watch('check_in_date')
     const checkOut = watch('check_out_date')
     const numGuests = watch('num_guests')
@@ -213,8 +236,10 @@ export default function BookingContent() {
     if (checkIn && checkOut && checkOut < checkIn) {
       customErrors.date = 'Check-out date cannot be before check-in date'
     }
-    if (selectedRoom && numGuests > selectedRoom.max_occupancy) {
-      customErrors.guests = `This cabin fits a maximum of ${selectedRoom.max_occupancy} guest${selectedRoom.max_occupancy !== 1 ? 's' : ''}`
+    if (!allCabinsSelected) {
+      customErrors.cabins = 'Please select all cabins'
+    } else if (numGuests > totalCabinCapacity) {
+      customErrors.guests = `Selected cabins fit a maximum of ${totalCabinCapacity} guests. Add another cabin.`
     }
     setStep1Errors(customErrors)
 
@@ -228,11 +253,18 @@ export default function BookingContent() {
         .filter(a => (data.selected_addons ?? []).includes(a.id))
         .map(a => ({ id: a.id, name: a.name, price: a.price }))
 
+      const cabinItems = selectedCabins.filter(c => c).map(cId => {
+        const room = rooms.find(r => r.id === cId)
+        return { room_type_id: cId, room_name: room?.name ?? '' }
+      })
+
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...data,
+          room_type_id: selectedCabins[0] || data.room_type_id,
+          cabins: cabinItems,
           add_ons: addOnItems,
           payment_method: paymentMethod,
           ...(promoData && promoStatus === 'valid' ? { promo_code: promoData.code } : {}),
@@ -285,7 +317,12 @@ export default function BookingContent() {
     <div className="bg-white rounded-2xl shadow p-5 sticky top-28">
       <h3 className="font-bold text-gray-900 mb-3">Price Summary</h3>
       <div className="space-y-2 text-sm text-gray-700">
-        {selectedRoom && <div className="flex justify-between"><span>Cabin</span><span>{selectedRoom.name}</span></div>}
+        {selectedCabins.filter(c => c).length > 0 && (
+          <div className="flex justify-between">
+            <span>Cabin{selectedCabins.filter(c => c).length > 1 ? 's' : ''}</span>
+            <span>{selectedCabins.filter(c => c).map(cId => rooms.find(r => r.id === cId)?.name).join(', ')}</span>
+          </div>
+        )}
         <div className="flex justify-between"><span>Package</span><span>{isDayTrip ? 'Day Trip' : `${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}</span></div>
         <div className="flex justify-between"><span>Guests</span><span>{watch('num_guests')}</span></div>
         <div className="flex justify-between text-xs text-gray-500">
@@ -344,38 +381,12 @@ export default function BookingContent() {
               <h2 className="text-xl font-bold text-gray-900">Trip Details</h2>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Cabin <span className="text-red-500">*</span></label>
-                {selectedRoom && roomSlug ? (
-                  <>
-                    <input type="hidden" {...register('room_type_id')} />
-                    <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
-                      {selectedRoom.name} — {selectedRoom.bed_type} bed
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">
-                      <button type="button" onClick={() => { setValue('room_type_id', ''); window.history.replaceState(null, '', '/book') }} className="text-primary hover:underline">Change cabin</button>
-                    </p>
-                  </>
-                ) : (
-                  <select {...register('room_type_id')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent">
-                    <option value="">Choose a cabin...</option>
-                    {rooms.map(r => (
-                      <option key={r.id} value={r.id}>{r.name} — {r.bed_type} bed</option>
-                    ))}
-                  </select>
-                )}
-                {errors.room_type_id && <p className="text-red-500 text-sm mt-1">{errors.room_type_id.message}</p>}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests <span className="text-red-500">*</span></label>
+                <input type="number" min={1} max={10} {...register('num_guests', { valueAsNumber: true, min: 1, max: 10 })}
+                  onBlur={(e) => { const v = parseInt(e.target.value); if (v < 1) setValue('num_guests', 1); else if (v > 10) setValue('num_guests', 10); }}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
+                {step1Errors.guests && <p className="text-red-500 text-sm mt-1">{step1Errors.guests}</p>}
               </div>
-
-              {/* Package auto-detected from dates */}
-              <input type="hidden" {...register('package_id')} />
-              {selectedPackage && (
-                <div className="bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
-                  <p className="text-sm font-medium text-primary">
-                    {isDayTrip ? '📍 Day Trip' : `🚢 ${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}
-                    {' — '}{formatPrice(selectedPackage.price_per_person)}{isDayTrip ? '/person' : '/person/night'}
-                  </p>
-                </div>
-              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -391,13 +402,59 @@ export default function BookingContent() {
               </div>
               {step1Errors.date && <p className="text-red-500 text-sm">{step1Errors.date}</p>}
 
+              {/* Package auto-detected from dates */}
+              <input type="hidden" {...register('package_id')} />
+              <input type="hidden" {...register('room_type_id')} />
+              {selectedPackage && (
+                <div className="bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
+                  <p className="text-sm font-medium text-primary">
+                    {isDayTrip ? '📍 Day Trip' : `🚢 ${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}
+                    {' — '}{formatPrice(selectedPackage.price_per_person)}{isDayTrip ? '/person' : '/person/night'}
+                  </p>
+                </div>
+              )}
+
+              {/* Cabins */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests</label>
-                <input type="number" min={1} max={10} {...register('num_guests', { valueAsNumber: true, min: 1, max: 10 })}
-                  onBlur={(e) => { const v = parseInt(e.target.value); if (v < 1) setValue('num_guests', 1); else if (v > 10) setValue('num_guests', 10); }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
-                {step1Errors.guests && <p className="text-red-500 text-sm mt-1">{step1Errors.guests}</p>}
-                {selectedRoom && <p className="text-xs text-gray-400 mt-1">Max {selectedRoom.max_occupancy} guest{selectedRoom.max_occupancy !== 1 ? 's' : ''} for this cabin</p>}
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cabins <span className="text-red-500">*</span>
+                  <span className="text-xs text-gray-400 font-normal ml-2">
+                    ({minCabinsNeeded} cabin{minCabinsNeeded > 1 ? 's' : ''} needed for {watchGuests} guest{watchGuests > 1 ? 's' : ''} · max 2 per cabin)
+                  </span>
+                </label>
+                <div className="space-y-2">
+                  {selectedCabins.map((cabinId, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <span className="text-xs text-gray-400 w-16">Cabin {idx + 1}</span>
+                      <select
+                        value={cabinId}
+                        onChange={(e) => {
+                          const next = [...selectedCabins]
+                          next[idx] = e.target.value
+                          setSelectedCabins(next)
+                          if (idx === 0) setValue('room_type_id', e.target.value)
+                        }}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                      >
+                        <option value="">Choose cabin type...</option>
+                        {rooms.map(r => (
+                          <option key={r.id} value={r.id}>{r.name} — {r.bed_type} (max {r.max_occupancy})</option>
+                        ))}
+                      </select>
+                      {idx >= minCabinsNeeded && (
+                        <button type="button" onClick={() => setSelectedCabins(prev => prev.filter((_, i) => i !== idx))}
+                          className="text-red-400 hover:text-red-600 text-sm px-2">✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {selectedCabins.length < 5 && (
+                  <button type="button" onClick={() => setSelectedCabins(prev => [...prev, ''])}
+                    className="mt-2 text-sm text-primary hover:underline">
+                    + Add another cabin
+                  </button>
+                )}
+                {step1Errors.cabins && <p className="text-red-500 text-sm mt-1">{step1Errors.cabins}</p>}
               </div>
 
               <div>
@@ -539,11 +596,11 @@ export default function BookingContent() {
               </div>
 
               {/* Summary */}
-              {selectedRoom && selectedPackage && (
+              {allCabinsSelected && selectedPackage && (
                 <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
                   <h3 className="font-semibold text-gray-900 mb-3">Booking Summary</h3>
                   <div className="space-y-1 text-sm text-gray-700">
-                    <div className="flex justify-between"><span>Cabin</span><span>{selectedRoom.name}</span></div>
+                    <div className="flex justify-between"><span>Cabin{selectedCabins.filter(c => c).length > 1 ? 's' : ''}</span><span>{selectedCabins.filter(c => c).map(cId => rooms.find(r => r.id === cId)?.name).join(', ')}</span></div>
                     <div className="flex justify-between"><span>Package</span><span>{isDayTrip ? 'Day Trip' : `${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}</span></div>
                     <div className="flex justify-between"><span>Guests</span><span>{watch('num_guests')}</span></div>
                     <div className="flex justify-between">

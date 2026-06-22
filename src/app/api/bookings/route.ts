@@ -26,6 +26,10 @@ const bookingSchema = z.object({
     price: z.number(),
     notes: z.string().optional(),
   })).default([]),
+  cabins: z.array(z.object({
+    room_type_id: z.string(),
+    room_name: z.string(),
+  })).default([]),
   special_requests: z.string().optional(),
   promo_code: z.string().optional(),
   payment_method: z.enum(['bank_transfer', 'stripe']).default('bank_transfer'),
@@ -52,14 +56,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate guest count against room capacity
-    const { data: roomType } = await supabase
-      .from('room_types')
-      .select('max_occupancy')
-      .eq('id', data.room_type_id)
-      .single()
-
-    if (roomType && data.num_guests > roomType.max_occupancy) {
-      return NextResponse.json({ error: `This cabin fits a maximum of ${roomType.max_occupancy} guests` }, { status: 400 })
+    // Validate total cabin capacity fits guests
+    if (data.cabins.length > 0) {
+      const cabinIds = data.cabins.map(c => c.room_type_id)
+      const { data: cabinRooms } = await supabase
+        .from('room_types')
+        .select('id, max_occupancy')
+        .in('id', cabinIds)
+      const totalCapacity = (cabinRooms ?? []).reduce((sum, r) => sum + r.max_occupancy, 0)
+      if (data.num_guests > totalCapacity) {
+        return NextResponse.json({ error: `Selected cabins fit a maximum of ${totalCapacity} guests` }, { status: 400 })
+      }
     }
 
     const basePrice = (pricing?.price_override ?? (pricing?.packages as { price_per_person: number } | null)?.price_per_person ?? 0)
@@ -114,6 +121,7 @@ export async function POST(request: NextRequest) {
       status: 'pending_payment',
       payment_method: data.payment_method,
       add_ons: data.add_ons as unknown as BookingInsert['add_ons'],
+      cabins: data.cabins as unknown as BookingInsert['cabins'],
       total_amount: calculatedTotal,
       promo_code_id: promoCodeId,
       discount_amount: discountAmount,

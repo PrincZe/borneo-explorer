@@ -271,6 +271,7 @@ export type Database = {
           nitrox_required: boolean
           equipment_rental: boolean
           add_ons: Json
+          cabins: Json
           special_requests: string | null
           payment_method: 'bank_transfer' | 'stripe' | null
           payment_receipt_url: string | null
@@ -302,6 +303,7 @@ export type Database = {
           nitrox_required?: boolean
           equipment_rental?: boolean
           add_ons?: Json
+          cabins?: Json
           special_requests?: string | null
           payment_method?: 'bank_transfer' | 'stripe' | null
           payment_receipt_url?: string | null
@@ -333,6 +335,7 @@ export type Database = {
           nitrox_required?: boolean
           equipment_rental?: boolean
           add_ons?: Json
+          cabins?: Json
           special_requests?: string | null
           payment_method?: 'bank_transfer' | 'stripe' | null
           payment_receipt_url?: string | null
