@@ -277,6 +277,8 @@ export default function BookingContent() {
     }
   }
 
+  const today = new Date().toISOString().split('T')[0]
+
   const steps = ['Trip Details', 'Your Info', 'Payment']
 
   const pricingSummary = selectedPackage && (watchCheckIn && watchCheckOut) ? (
@@ -343,12 +345,24 @@ export default function BookingContent() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Cabin <span className="text-red-500">*</span></label>
-                <select {...register('room_type_id')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent">
-                  <option value="">Choose a cabin...</option>
-                  {rooms.map(r => (
-                    <option key={r.id} value={r.id}>{r.name} — {r.bed_type} bed</option>
-                  ))}
-                </select>
+                {selectedRoom && roomSlug ? (
+                  <>
+                    <input type="hidden" {...register('room_type_id')} />
+                    <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
+                      {selectedRoom.name} — {selectedRoom.bed_type} bed
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      <button type="button" onClick={() => { setValue('room_type_id', ''); window.history.replaceState(null, '', '/book') }} className="text-primary hover:underline">Change cabin</button>
+                    </p>
+                  </>
+                ) : (
+                  <select {...register('room_type_id')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent">
+                    <option value="">Choose a cabin...</option>
+                    {rooms.map(r => (
+                      <option key={r.id} value={r.id}>{r.name} — {r.bed_type} bed</option>
+                    ))}
+                  </select>
+                )}
                 {errors.room_type_id && <p className="text-red-500 text-sm mt-1">{errors.room_type_id.message}</p>}
               </div>
 
@@ -366,12 +380,12 @@ export default function BookingContent() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Check-in Date <span className="text-red-500">*</span></label>
-                  <input type="date" {...register('check_in_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
+                  <input type="date" min={today} {...register('check_in_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
                   {errors.check_in_date && <p className="text-red-500 text-sm mt-1">{errors.check_in_date.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date <span className="text-xs text-gray-400 font-normal">(same day = day trip)</span> <span className="text-red-500">*</span></label>
-                  <input type="date" {...register('check_out_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
+                  <input type="date" min={watchCheckIn || today} {...register('check_out_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
                   {errors.check_out_date && <p className="text-red-500 text-sm mt-1">{errors.check_out_date.message}</p>}
                 </div>
               </div>
