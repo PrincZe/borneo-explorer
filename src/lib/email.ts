@@ -45,7 +45,7 @@ export async function sendBookingConfirmationEmail(booking: Booking & {
               ${booking.check_in_date ? `<tr><td style="padding: 6px 0; color: #666;">Check-in</td><td style="padding: 6px 0;">${booking.check_in_date}</td></tr>` : ''}
               ${booking.check_out_date ? `<tr><td style="padding: 6px 0; color: #666;">Check-out</td><td style="padding: 6px 0;">${booking.check_out_date}</td></tr>` : ''}
               <tr><td style="padding: 6px 0; color: #666;">Guests</td><td style="padding: 6px 0;">${booking.num_guests}</td></tr>
-              ${booking.total_amount ? `<tr><td style="padding: 6px 0; color: #666;">Total Amount</td><td style="padding: 6px 0; font-weight: bold; color: #0077a8;">SGD ${booking.total_amount.toLocaleString()}</td></tr>` : ''}
+              ${booking.total_amount ? `<tr><td style="padding: 6px 0; color: #666;">Total Amount</td><td style="padding: 6px 0; font-weight: bold; color: #0077a8;">RM ${booking.total_amount.toLocaleString()}</td></tr>` : ''}
             </table>
           </div>
 
@@ -109,7 +109,7 @@ export async function sendAdminNewBookingNotification(booking: Booking & {
             ${booking.check_in_date ? `<tr><td style="padding: 6px 0; color: #666;">Check-in</td><td style="padding: 6px 0;">${booking.check_in_date}</td></tr>` : ''}
             ${booking.check_out_date ? `<tr><td style="padding: 6px 0; color: #666;">Check-out</td><td style="padding: 6px 0;">${booking.check_out_date}</td></tr>` : ''}
             <tr><td style="padding: 6px 0; color: #666;">Guests</td><td style="padding: 6px 0;">${booking.num_guests}</td></tr>
-            ${booking.total_amount ? `<tr><td style="padding: 6px 0; color: #666;">Total</td><td style="padding: 6px 0; font-weight: bold; color: #0077a8;">SGD ${booking.total_amount.toLocaleString()}</td></tr>` : ''}
+            ${booking.total_amount ? `<tr><td style="padding: 6px 0; color: #666;">Total</td><td style="padding: 6px 0; font-weight: bold; color: #0077a8;">RM ${booking.total_amount.toLocaleString()}</td></tr>` : ''}
           </table>
           <div style="margin-top: 24px;">
             <a href="${SITE_URL}/admin/bookings/${booking.id}"

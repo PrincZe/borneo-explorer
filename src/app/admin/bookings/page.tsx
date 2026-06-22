@@ -219,7 +219,7 @@ export default function AdminBookingsPage() {
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${cls}`}>{label}</span>
                       </td>
                       <td className="px-4 py-3 text-right font-medium text-gray-900">
-                        {booking.total_amount ? `SGD ${booking.total_amount.toLocaleString()}` : '—'}
+                        {booking.total_amount ? `RM ${booking.total_amount.toLocaleString()}` : '—'}
                       </td>
                     </tr>
                   )

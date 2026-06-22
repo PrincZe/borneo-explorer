@@ -291,7 +291,7 @@ export default function BookingDetailPage() {
                       <span className="text-gray-800">{addon.name}</span>
                       {addon.notes && <span className="text-gray-400 text-xs ml-2">· {addon.notes}</span>}
                     </div>
-                    <span className="text-gray-600 font-medium">SGD {addon.price.toLocaleString()}</span>
+                    <span className="text-gray-600 font-medium">RM {addon.price.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
@@ -370,7 +370,7 @@ export default function BookingDetailPage() {
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
             <div className="text-xs uppercase tracking-wide font-medium text-gray-400 mb-1">Total Amount</div>
             <div className="text-3xl font-bold text-gray-900">
-              {booking.total_amount ? `SGD ${booking.total_amount.toLocaleString()}` : '—'}
+              {booking.total_amount ? `RM ${booking.total_amount.toLocaleString()}` : '—'}
             </div>
             <div className="text-xs text-gray-400 mt-1">Payment: {booking.payment_method ?? '—'}</div>
 

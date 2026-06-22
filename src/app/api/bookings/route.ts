@@ -138,11 +138,11 @@ export async function POST(request: NextRequest) {
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],
-        currency: 'sgd',
+        currency: 'myr',
         customer_email: data.customer_email,
         line_items: [{
           price_data: {
-            currency: 'sgd',
+            currency: 'myr',
             product_data: {
               name: `Dive Booking ${booking.booking_ref}`,
               description: [

@@ -117,7 +117,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
                     <div className="flex justify-between items-start mb-1">
                       <h3 className="font-semibold text-gray-900">{rp.packages.name}</h3>
                       <div className="text-right">
-                        <div className="font-bold text-primary">SGD {(rp.price_override ?? rp.packages.price_per_person).toLocaleString()}</div>
+                        <div className="font-bold text-primary">RM {(rp.price_override ?? rp.packages.price_per_person).toLocaleString()}</div>
                         <div className="text-xs text-gray-400">per person</div>
                       </div>
                     </div>

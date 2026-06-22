@@ -144,7 +144,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
               <div className="pt-3 border-t border-gray-100">
                 <div className="flex justify-between font-bold text-primary">
                   <span>Total Amount</span>
-                  <span>SGD {booking.total_amount.toLocaleString()}</span>
+                  <span>RM {booking.total_amount.toLocaleString()}</span>
                 </div>
               </div>
             )}
@@ -156,7 +156,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
           <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-6">
             <h3 className="font-semibold text-yellow-800 mb-2">Complete Your Payment</h3>
             <p className="text-sm text-yellow-700 mb-3">
-              Transfer <strong>SGD {booking.total_amount?.toLocaleString()}</strong> to:
+              Transfer <strong>RM {booking.total_amount?.toLocaleString()}</strong> to:
             </p>
             <div className="text-sm text-yellow-800 space-y-1 bg-white rounded-lg p-3 mb-3">
               <div><span className="text-gray-500">Bank:</span> Maybank</div>

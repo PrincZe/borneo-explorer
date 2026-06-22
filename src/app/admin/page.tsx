@@ -144,7 +144,7 @@ export default async function AdminDashboard({ searchParams }: Props) {
             </div>
             <span className="text-sm text-gray-500 font-medium">Confirmed Revenue</span>
           </div>
-          <div className="text-3xl font-bold text-gray-900">SGD {totalRevenue.toLocaleString()}</div>
+          <div className="text-3xl font-bold text-gray-900">RM {totalRevenue.toLocaleString()}</div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -226,7 +226,7 @@ export default async function AdminDashboard({ searchParams }: Props) {
                 </div>
                 <div className="w-6 text-sm font-bold text-gray-900 text-right flex-shrink-0">{row.bookings}</div>
                 <div className="w-28 text-xs text-gray-400 text-right flex-shrink-0">
-                  {row.confirmed > 0 ? `SGD ${row.revenue.toLocaleString()}` : '—'}
+                  {row.confirmed > 0 ? `RM ${row.revenue.toLocaleString()}` : '—'}
                 </div>
               </Link>
             )
@@ -273,7 +273,7 @@ export default async function AdminDashboard({ searchParams }: Props) {
                   <div className="text-right ml-4 flex-shrink-0">
                     {booking.total_amount && (
                       <div className="text-sm font-semibold text-gray-900">
-                        SGD {booking.total_amount.toLocaleString()}
+                        RM {booking.total_amount.toLocaleString()}
                       </div>
                     )}
                     <div className="text-xs text-gray-400 mt-0.5">

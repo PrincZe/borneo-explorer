@@ -17,7 +17,7 @@ function formatDate(dateStr: string | null) {
 
 function formatCurrency(amount: number | null) {
   if (amount == null) return '—'
-  return `SGD ${amount.toLocaleString('en-SG', { minimumFractionDigits: 0 })}`
+  return `RM ${amount.toLocaleString('en-MY', { minimumFractionDigits: 0 })}`
 }
 
 function nightsCount(checkIn: string | null, checkOut: string | null): number {

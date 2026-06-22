@@ -148,7 +148,7 @@ function UploadReceiptContent() {
               {booking.total_amount && (
                 <div className="flex justify-between pt-2 border-t border-gray-100">
                   <span className="text-gray-500">Amount</span>
-                  <span className="font-bold text-primary">SGD {booking.total_amount.toLocaleString()}</span>
+                  <span className="font-bold text-primary">RM {booking.total_amount.toLocaleString()}</span>
                 </div>
               )}
             </div>

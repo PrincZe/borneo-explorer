@@ -6,8 +6,10 @@ import { Fish, Ship, Award, Star } from 'lucide-react'
 import { AnimateOnScroll } from '@/components/ui/animate-on-scroll'
 import { WaveDivider } from '@/components/ui/wave-divider'
 import HeroSearch from './components/HeroSearch'
+import { useCurrency } from '@/components/CurrencyProvider'
 
 export default function Home() {
+  const { formatPrice } = useCurrency()
   return (
     <div>
       {/* Hero Section */}
@@ -92,11 +94,10 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Featured Diving Packages</h2>
             <p className="text-gray-600 text-center mb-12 max-w-2xl mx-auto">Choose the perfect adventure for your diving experience</p>
           </AnimateOnScroll>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {[
-              { img: '/images/package-4d3n.webp', title: '4D3N Sipadan Cruise', desc: '9 dives in Sipadan - perfect for a long weekend getaway.', price: 'From SGD 1,088 per person', href: '/diving-packages#4d3n', popular: false },
-              { img: '/images/package-5d4n.webp', title: '5D4N Sipadan Adventure', desc: 'Extended cruise with more dive time at each site.', price: 'From SGD 1,585 per person', href: '/diving-packages#5d4n', popular: true },
-              { img: '/images/package-charter.webp', title: 'Private Charter', desc: 'Exclusive vessel charter for groups up to 10 divers.', price: 'From SGD 14,540 total', href: '/diving-packages#charter', popular: false },
+              { img: '/images/package-4d3n.webp', title: 'Day Trip', desc: 'A full-day diving trip with 3 dives at Sipadan — perfect for those short on time.', price: `From ${formatPrice(1300)} per person`, href: '/diving-packages#day-trip', popular: false },
+              { img: '/images/package-5d4n.webp', title: '1D1N Liveaboard', desc: 'Overnight liveaboard with 5 dives including a night dive at Sipadan.', price: `From ${formatPrice(1500)} per person`, href: '/diving-packages#1d1n', popular: true },
             ].map((pkg, i) => (
               <AnimateOnScroll key={i} animation="slide-up" delay={i * 0.15}>
                 <div className="bg-white rounded-xl shadow-md overflow-hidden card-hover relative">

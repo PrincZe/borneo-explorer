@@ -10,6 +10,7 @@ import {
   NavigationMenuList,
 } from "@/components/ui/navigation-menu"
 import { Ship, Menu, X, User } from 'lucide-react'
+import { CurrencySwitcher } from '@/components/CurrencyProvider'
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -78,6 +79,11 @@ const Header = () => {
             </NavigationMenu>
           </div>
 
+          {/* Currency Switcher - Desktop */}
+          <div className="hidden lg:block">
+            <CurrencySwitcher />
+          </div>
+
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -99,6 +105,9 @@ const Header = () => {
           }`}
         >
           <nav className="mt-4 border-t border-white/20 pt-4">
+            <div className="px-4 pb-3">
+              <CurrencySwitcher />
+            </div>
             <ul className="space-y-1">
               {navItems.map((item) => (
                 <li key={item.name}>

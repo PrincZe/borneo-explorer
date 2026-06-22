@@ -6,53 +6,42 @@ import { Check } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AnimateOnScroll } from '@/components/ui/animate-on-scroll'
+import { useCurrency } from '@/components/CurrencyProvider'
 
-const packages = [
+const PACKAGES = [
   {
-    id: '4d3n',
-    slug: '4d3n-sipadan-cruise',
-    title: '4D3N Sipadan Cruise',
-    price: 'SGD 1,088',
+    id: 'day-trip',
+    slug: 'day-trip',
+    title: 'Day Trip',
+    priceMYR: 1300,
     priceNote: 'per person',
     image: '/images/package-4d3n.webp',
-    description: 'Perfect for a long weekend getaway, featuring 9 dives across Sipadan\'s most spectacular sites.',
+    description: 'A full-day diving trip to Sipadan with 3 dives, perfect for those short on time.',
     popular: false,
     features: [
-      ['9 dives in Sipadan', 'Full board meals', 'Permit fees included'],
-      ['Professional guides', 'Equipment available', 'Max 10 divers'],
+      ['3 guided dives', 'Lunch included', 'Sipadan permit included'],
+      ['Marine park fees', 'Professional dive guide', 'Boat transfers'],
     ],
   },
   {
-    id: '5d4n',
-    slug: '5d4n-sipadan-adventure',
-    title: '5D4N Sipadan Adventure',
-    price: 'SGD 1,585',
+    id: '1d1n',
+    slug: '1d1n-liveaboard',
+    title: '1D1N Liveaboard',
+    priceMYR: 1500,
     priceNote: 'per person',
     image: '/images/package-5d4n.webp',
-    description: 'Extended cruise with 12 dives, perfect for experiencing all of Sipadan\'s marine life.',
+    description: 'Overnight liveaboard experience with 5 dives including a night dive at Sipadan.',
     popular: true,
     features: [
-      ['12 dives in Sipadan', 'Full board meals', 'Permit fees included'],
-      ['Professional guides', 'Equipment available', 'Extra dive time'],
-    ],
-  },
-  {
-    id: 'charter',
-    slug: 'private-charter',
-    title: 'Private Charter',
-    price: 'SGD 14,540',
-    priceNote: 'for up to 10 divers',
-    image: '/images/package-charter.webp',
-    description: 'Exclusive vessel charter with customizable itinerary.',
-    popular: false,
-    features: [
-      ['Exclusive vessel use', 'Custom schedule', 'All permits included'],
-      ['Private guides', 'Flexible meals', 'Up to 4 dives/day'],
+      ['5 guided dives', 'All meals included', '1 night accommodation'],
+      ['Sipadan permit included', 'Night dive', 'Marine park fees'],
     ],
   },
 ];
 
 export default function DivingPackagesContent() {
+  const { formatPrice, currency } = useCurrency()
+
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16">
       <div className="container mx-auto px-4">
@@ -68,7 +57,7 @@ export default function DivingPackagesContent() {
 
         {/* Packages */}
         <div className="space-y-12">
-          {packages.map((pkg, index) => (
+          {PACKAGES.map((pkg, index) => (
             <AnimateOnScroll key={pkg.id} animation={index % 2 === 0 ? 'slide-left' : 'slide-right'}>
               <div id={pkg.id} className="scroll-mt-28">
                 <Card className={`overflow-hidden card-hover relative ${pkg.popular ? 'ring-2 ring-accent shadow-lg' : ''}`}>
@@ -88,8 +77,8 @@ export default function DivingPackagesContent() {
                     </div>
                     <div className="p-6 md:p-8">
                       <h2 className="text-2xl font-bold mb-2">{pkg.title}</h2>
-                      <p className="text-2xl font-bold text-accent mb-1">{pkg.price}</p>
-                      <p className="text-sm text-gray-500 mb-4">{pkg.priceNote}</p>
+                      <p className="text-2xl font-bold text-accent mb-1">{formatPrice(pkg.priceMYR)}</p>
+                      <p className="text-sm text-gray-500 mb-4">{pkg.priceNote}{currency !== 'MYR' && ' · Charged in MYR'}</p>
                       <p className="text-gray-600 mb-6">{pkg.description}</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         {pkg.features.map((col, ci) => (

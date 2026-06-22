@@ -150,7 +150,7 @@ export default function AffiliateDetailPage() {
             <TrendingUp className="w-4 h-4 text-green-500" />
             Total Commission
           </div>
-          <div className="text-3xl font-bold text-gray-900">SGD {totalCommission.toLocaleString()}</div>
+          <div className="text-3xl font-bold text-gray-900">RM {totalCommission.toLocaleString()}</div>
         </div>
       </div>
 
@@ -191,14 +191,14 @@ export default function AffiliateDetailPage() {
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="percent">Percentage off</option>
-                    <option value="fixed">Fixed amount off (SGD)</option>
+                    <option value="fixed">Fixed amount off (RM)</option>
                     <option value="none">No discount (tracking only)</option>
                   </select>
                 </div>
                 {codeForm.discount_type !== 'none' && (
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
-                      {codeForm.discount_type === 'percent' ? 'Discount (%)' : 'Discount (SGD)'}
+                      {codeForm.discount_type === 'percent' ? 'Discount (%)' : 'Discount (RM)'}
                     </label>
                     <input
                       type="number"
@@ -297,7 +297,7 @@ export default function AffiliateDetailPage() {
                     <span>
                       {code.discount_type === 'none' ? 'Tracking only' :
                         code.discount_type === 'percent' ? `${code.discount_value}% off` :
-                        `SGD ${code.discount_value} off`}
+                        `RM ${code.discount_value} off`}
                     </span>
                     <span>{code.uses_count}{code.max_uses ? `/${code.max_uses}` : ''} uses</span>
                     <span className={expiryLabel(code.expires_at).color}>

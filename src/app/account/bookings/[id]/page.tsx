@@ -24,7 +24,7 @@ function formatDate(d: string | null) {
 
 function formatCurrency(amount: number | null) {
   if (amount == null) return '—'
-  return `SGD ${amount.toLocaleString('en-SG', { minimumFractionDigits: 2 })}`
+  return `RM ${amount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}`
 }
 
 function nightsCount(checkIn: string | null, checkOut: string | null): number {
@@ -205,7 +205,7 @@ export default async function CustomerBookingDetailPage({
               {addOns.map((a, i) => (
                 <li key={i} className="flex justify-between text-sm text-gray-700">
                   <span>{a.name}</span>
-                  <span className="text-gray-500">SGD {a.price.toLocaleString()}</span>
+                  <span className="text-gray-500">RM {a.price.toLocaleString()}</span>
                 </li>
               ))}
             </ul>

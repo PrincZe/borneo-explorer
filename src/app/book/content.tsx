@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { Upload, CheckCircle, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { RoomType, Package, AddOnOption } from '@/types/database'
+import { useCurrency } from '@/components/CurrencyProvider'
 
 const step1Schema = z.object({
   room_type_id: z.string().min(1, 'Please select a cabin'),
@@ -39,6 +40,7 @@ const CERT_LEVELS = ['Open Water', 'Advanced Open Water', 'Rescue Diver', 'Divem
 export default function BookingContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { formatPrice, currency } = useCurrency()
 
   const roomSlug = searchParams.get('roomSlug') || ''
   const packageSlug = searchParams.get('packageSlug') || ''
@@ -302,7 +304,7 @@ export default function BookingContent() {
                 <select {...register('package_id')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent">
                   <option value="">Choose a package...</option>
                   {packages.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} — SGD {p.price_per_person.toLocaleString()}/person</option>
+                    <option key={p.id} value={p.id}>{p.name} — {formatPrice(p.price_per_person)}/person</option>
                   ))}
                 </select>
                 {errors.package_id && <p className="text-red-500 text-sm mt-1">{errors.package_id.message}</p>}
@@ -416,7 +418,7 @@ export default function BookingContent() {
                         <div className="flex-1">
                           <div className="flex justify-between">
                             <span className="font-medium text-gray-900">{a.name}</span>
-                            <span className="text-primary font-semibold">+SGD {a.price}</span>
+                            <span className="text-primary font-semibold">+{formatPrice(a.price)}</span>
                           </div>
                           {a.description && <p className="text-xs text-gray-500 mt-0.5">{a.description}</p>}
                         </div>
@@ -452,7 +454,7 @@ export default function BookingContent() {
                 </div>
                 {promoStatus === 'valid' && promoData && (
                   <p className="text-green-600 text-sm mt-2">
-                    ✓ Code applied — {promoData.discount_type === 'percent' ? `${promoData.discount_value}% off` : `SGD ${promoData.discount_value} off`}
+                    ✓ Code applied — {promoData.discount_type === 'percent' ? `${promoData.discount_value}% off` : `${formatPrice(promoData.discount_value)} off`}
                     {promoData.affiliate_name ? ` (via ${promoData.affiliate_name})` : ''}
                   </p>
                 )}
@@ -469,19 +471,20 @@ export default function BookingContent() {
                     <div className="flex justify-between"><span>Cabin</span><span>{selectedRoom.name}</span></div>
                     <div className="flex justify-between"><span>Package</span><span>{selectedPackage.name}</span></div>
                     <div className="flex justify-between"><span>Guests</span><span>{watch('num_guests')}</span></div>
-                    <div className="flex justify-between"><span>Base price</span><span>SGD {(selectedPackage.price_per_person * (watch('num_guests') ?? 1)).toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span>Base price</span><span>{formatPrice(selectedPackage.price_per_person * (watch('num_guests') ?? 1))}</span></div>
                     {selectedAddons.length > 0 && addOns.filter(a => selectedAddons.includes(a.id)).map(a => (
-                      <div key={a.id} className="flex justify-between text-gray-500"><span>+ {a.name}</span><span>SGD {a.price}</span></div>
+                      <div key={a.id} className="flex justify-between text-gray-500"><span>+ {a.name}</span><span>{formatPrice(a.price)}</span></div>
                     ))}
                     {promoStatus === 'valid' && promoData && calcDiscount(calcSubtotal()) > 0 && (
                       <div className="flex justify-between text-green-600">
                         <span>Discount ({promoData.code})</span>
-                        <span>- SGD {calcDiscount(calcSubtotal()).toLocaleString()}</span>
+                        <span>- {formatPrice(calcDiscount(calcSubtotal()))}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-bold text-primary text-base pt-2 border-t border-primary/20">
-                      <span>Total</span><span>SGD {calcTotal().toLocaleString()}</span>
+                      <span>Total</span><span>{formatPrice(calcTotal())}</span>
                     </div>
+                    {currency !== 'MYR' && <p className="text-xs text-gray-400 mt-2">You will be charged in MYR. Displayed price is approximate.</p>}
                   </div>
                 </div>
               )}
@@ -552,7 +555,7 @@ export default function BookingContent() {
                     ['Bank', 'Maybank'],
                     ['Account Name', 'Celebes Explorer Sdn Bhd'],
                     ['Account Number', '5642 1234 5678'],
-                    ['Amount', `SGD ${calcTotal().toLocaleString()}`],
+                    ['Amount', `RM ${calcTotal().toLocaleString()}`],
                   ].map(([k, v]) => (
                     <tr key={k}>
                       <td className="py-1 text-gray-500 w-1/3">{k}</td>

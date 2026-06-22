@@ -180,7 +180,7 @@ function RoomsContent() {
                       {lowestPrice !== null && (
                         <div>
                           <span className="text-xs text-gray-400">From</span>
-                          <div className="text-xl font-bold text-primary">SGD {lowestPrice.toLocaleString()}</div>
+                          <div className="text-xl font-bold text-primary">RM {lowestPrice.toLocaleString()}</div>
                           <span className="text-xs text-gray-400">per person</span>
                         </div>
                       )}
