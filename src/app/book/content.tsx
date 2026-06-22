@@ -393,7 +393,8 @@ export default function BookingContent() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests</label>
-                <input type="number" min={1} max={10} {...register('num_guests', { valueAsNumber: true })}
+                <input type="number" min={1} max={10} {...register('num_guests', { valueAsNumber: true, min: 1, max: 10 })}
+                  onBlur={(e) => { const v = parseInt(e.target.value); if (v < 1) setValue('num_guests', 1); else if (v > 10) setValue('num_guests', 10); }}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
                 {step1Errors.guests && <p className="text-red-500 text-sm mt-1">{step1Errors.guests}</p>}
                 {selectedRoom && <p className="text-xs text-gray-400 mt-1">Max {selectedRoom.max_occupancy} guest{selectedRoom.max_occupancy !== 1 ? 's' : ''} for this cabin</p>}
