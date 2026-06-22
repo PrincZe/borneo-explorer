@@ -145,13 +145,34 @@ export default function BookingContent() {
     }
   }
 
-  // Pre-select package from URL
+  // Auto-select package based on dates
+  const watchCheckIn = watch('check_in_date')
+  const watchCheckOut = watch('check_out_date')
+
+  function calcNights(): number {
+    if (!watchCheckIn || !watchCheckOut) return 0
+    if (watchCheckIn === watchCheckOut) return 0
+    const msPerDay = 86400000
+    const diff = (new Date(watchCheckOut).getTime() - new Date(watchCheckIn).getTime()) / msPerDay
+    return Math.max(0, Math.round(diff))
+  }
+
+  const nights = calcNights()
+  const isDayTrip = watchCheckIn && watchCheckOut && watchCheckIn === watchCheckOut
+
   useEffect(() => {
-    if (packageSlug && packages.length) {
+    if (!packages.length) return
+    if (isDayTrip) {
+      const pkg = packages.find(p => p.slug === 'day-trip')
+      if (pkg) setValue('package_id', pkg.id)
+    } else if (nights > 0) {
+      const pkg = packages.find(p => p.slug === '1d1n-liveaboard')
+      if (pkg) setValue('package_id', pkg.id)
+    } else if (packageSlug) {
       const pkg = packages.find(p => p.slug === packageSlug)
       if (pkg) setValue('package_id', pkg.id)
     }
-  }, [packageSlug, packages, setValue])
+  }, [watchCheckIn, watchCheckOut, packages, packageSlug, isDayTrip, nights, setValue])
 
   const selectedRoom = rooms.find(r => r.id === selectedRoomId)
   const selectedPackage = packages.find(p => p.id === selectedPackageId)
@@ -159,10 +180,11 @@ export default function BookingContent() {
   function calcSubtotal() {
     const basePrice = selectedPackage?.price_per_person ?? 0
     const guests = watch('num_guests') ?? 1
+    const multiplier = isDayTrip ? 1 : Math.max(1, nights)
     const addonTotal = addOns
       .filter(a => selectedAddons.includes(a.id))
       .reduce((sum, a) => sum + a.price, 0)
-    return basePrice * guests + addonTotal
+    return basePrice * multiplier * guests + addonTotal
   }
 
   function calcDiscount(subtotal: number) {
@@ -188,8 +210,8 @@ export default function BookingContent() {
     const checkOut = watch('check_out_date')
     const numGuests = watch('num_guests')
 
-    if (checkIn && checkOut && checkOut <= checkIn) {
-      customErrors.date = 'Check-out date must be after check-in date'
+    if (checkIn && checkOut && checkOut < checkIn) {
+      customErrors.date = 'Check-out date cannot be before check-in date'
     }
     if (selectedRoom && numGuests > selectedRoom.max_occupancy) {
       customErrors.guests = `This cabin fits a maximum of ${selectedRoom.max_occupancy} guest${selectedRoom.max_occupancy !== 1 ? 's' : ''}`
@@ -299,16 +321,16 @@ export default function BookingContent() {
                 {errors.room_type_id && <p className="text-red-500 text-sm mt-1">{errors.room_type_id.message}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Package <span className="text-red-500">*</span></label>
-                <select {...register('package_id')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent">
-                  <option value="">Choose a package...</option>
-                  {packages.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} — {formatPrice(p.price_per_person)}/person</option>
-                  ))}
-                </select>
-                {errors.package_id && <p className="text-red-500 text-sm mt-1">{errors.package_id.message}</p>}
-              </div>
+              {/* Package auto-detected from dates */}
+              <input type="hidden" {...register('package_id')} />
+              {selectedPackage && (
+                <div className="bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
+                  <p className="text-sm font-medium text-primary">
+                    {isDayTrip ? '📍 Day Trip' : `🚢 ${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}
+                    {' — '}{formatPrice(selectedPackage.price_per_person)}{isDayTrip ? '/person' : '/person/night'}
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -317,7 +339,7 @@ export default function BookingContent() {
                   {errors.check_in_date && <p className="text-red-500 text-sm mt-1">{errors.check_in_date.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date <span className="text-xs text-gray-400 font-normal">(same day = day trip)</span> <span className="text-red-500">*</span></label>
                   <input type="date" {...register('check_out_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
                   {errors.check_out_date && <p className="text-red-500 text-sm mt-1">{errors.check_out_date.message}</p>}
                 </div>
@@ -469,9 +491,12 @@ export default function BookingContent() {
                   <h3 className="font-semibold text-gray-900 mb-3">Booking Summary</h3>
                   <div className="space-y-1 text-sm text-gray-700">
                     <div className="flex justify-between"><span>Cabin</span><span>{selectedRoom.name}</span></div>
-                    <div className="flex justify-between"><span>Package</span><span>{selectedPackage.name}</span></div>
+                    <div className="flex justify-between"><span>Package</span><span>{isDayTrip ? 'Day Trip' : `${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}</span></div>
                     <div className="flex justify-between"><span>Guests</span><span>{watch('num_guests')}</span></div>
-                    <div className="flex justify-between"><span>Base price</span><span>{formatPrice(selectedPackage.price_per_person * (watch('num_guests') ?? 1))}</span></div>
+                    <div className="flex justify-between">
+                      <span>Base price</span>
+                      <span>{formatPrice(selectedPackage.price_per_person)} × {isDayTrip ? '' : `${nights} night${nights > 1 ? 's' : ''} × `}{watch('num_guests')} pax = {formatPrice(selectedPackage.price_per_person * (isDayTrip ? 1 : Math.max(1, nights)) * (watch('num_guests') ?? 1))}</span>
+                    </div>
                     {selectedAddons.length > 0 && addOns.filter(a => selectedAddons.includes(a.id)).map(a => (
                       <div key={a.id} className="flex justify-between text-gray-500"><span>+ {a.name}</span><span>{formatPrice(a.price)}</span></div>
                     ))}

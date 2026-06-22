@@ -64,7 +64,15 @@ export async function POST(request: NextRequest) {
 
     const basePrice = (pricing?.price_override ?? (pricing?.packages as { price_per_person: number } | null)?.price_per_person ?? 0)
     const addOnsTotal = data.add_ons.reduce((sum, a) => sum + a.price, 0)
-    const subtotal = (basePrice * data.num_guests) + addOnsTotal
+
+    // Calculate nights from dates
+    const isDayTrip = data.check_in_date === data.check_out_date
+    const nights = isDayTrip ? 0 : Math.max(1, Math.round(
+      (new Date(data.check_out_date).getTime() - new Date(data.check_in_date).getTime()) / 86400000
+    ))
+    const multiplier = isDayTrip ? 1 : nights
+
+    const subtotal = (basePrice * multiplier * data.num_guests) + addOnsTotal
 
     // Validate promo code if provided
     let promoCodeId: string | null = null
