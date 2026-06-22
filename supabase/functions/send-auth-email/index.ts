@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "https://zlseuqtdkdmzfkcgzyiv.supabase.co";
+const SITE_URL = "https://www.liveaboardsipadan.com";
 const FROM_EMAIL = "Liveaboard Sipadan <noreply@liveaboardsipadan.com>";
 
 interface AuthEmailPayload {
@@ -99,11 +101,23 @@ const headers = { "Content-Type": "application/json" };
 
 Deno.serve(async (req) => {
   try {
-    const payload: AuthEmailPayload = await req.json();
-    const { user, email_data, email_action_type } = payload;
+    const payload = await req.json();
+    console.log("Hook payload:", JSON.stringify(payload));
+    const { user, email_data, email_action_type } = payload as AuthEmailPayload;
 
-    const confirmUrl = email_data.verification_url || email_data.redirect_to;
     const name = user.user_metadata?.full_name;
+
+    // Build the confirmation URL that goes through Supabase's verify endpoint
+    // then redirects to our site's auth callback
+    let redirectPath = "/account";
+    if (email_action_type === "recovery") redirectPath = "/account/reset-password";
+
+    const emailType = email_action_type === "signup" ? "signup" :
+                      email_action_type === "recovery" ? "recovery" :
+                      email_action_type === "magiclink" ? "magiclink" :
+                      email_action_type === "email_change" ? "email_change" : "signup";
+
+    const confirmUrl = `${SUPABASE_URL}/auth/v1/verify?token=${email_data.token_hash}&type=${emailType}&redirect_to=${SITE_URL}/auth/callback?next=${redirectPath}`;
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
