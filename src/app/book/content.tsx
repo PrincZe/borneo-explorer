@@ -279,14 +279,42 @@ export default function BookingContent() {
 
   const steps = ['Trip Details', 'Your Info', 'Payment']
 
+  const pricingSummary = selectedPackage && (watchCheckIn && watchCheckOut) ? (
+    <div className="bg-white rounded-2xl shadow p-5 sticky top-28">
+      <h3 className="font-bold text-gray-900 mb-3">Price Summary</h3>
+      <div className="space-y-2 text-sm text-gray-700">
+        {selectedRoom && <div className="flex justify-between"><span>Cabin</span><span>{selectedRoom.name}</span></div>}
+        <div className="flex justify-between"><span>Package</span><span>{isDayTrip ? 'Day Trip' : `${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}</span></div>
+        <div className="flex justify-between"><span>Guests</span><span>{watch('num_guests')}</span></div>
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Rate</span>
+          <span>{formatPrice(selectedPackage.price_per_person)} {isDayTrip ? '× ' : `× ${nights} night${nights > 1 ? 's' : ''} × `}{watch('num_guests')} pax</span>
+        </div>
+        {selectedAddons.length > 0 && addOns.filter(a => selectedAddons.includes(a.id)).map(a => (
+          <div key={a.id} className="flex justify-between text-gray-500"><span>+ {a.name}</span><span>{formatPrice(a.price)}</span></div>
+        ))}
+        {promoStatus === 'valid' && promoData && calcDiscount(calcSubtotal()) > 0 && (
+          <div className="flex justify-between text-green-600">
+            <span>Discount ({promoData.code})</span>
+            <span>- {formatPrice(calcDiscount(calcSubtotal()))}</span>
+          </div>
+        )}
+        <div className="flex justify-between font-bold text-primary text-lg pt-2 border-t border-gray-100">
+          <span>Total</span><span>{formatPrice(calcTotal())}</span>
+        </div>
+        {currency !== 'MYR' && <p className="text-xs text-gray-400">Charged in MYR. Displayed price is approximate.</p>}
+      </div>
+    </div>
+  ) : null
+
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-10 px-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Book Your Dive Trip</h1>
         <p className="text-gray-500 mb-8">Aboard MV Celebes Explorer</p>
 
         {/* Step indicator */}
-        <div className="flex items-center mb-8">
+        <div className="flex items-center mb-8 max-w-2xl">
           {steps.map((s, i) => (
             <div key={s} className="flex items-center flex-1 last:flex-none">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
@@ -304,6 +332,9 @@ export default function BookingContent() {
           ))}
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <div className="lg:col-span-2">
         <form onSubmit={handleSubmit(onSubmit)}>
           {/* Step 1: Trip Details */}
           {step === 1 && (
@@ -379,6 +410,13 @@ export default function BookingContent() {
                   <span className="text-sm">Equipment rental needed</span>
                 </label>
               </div>
+
+              {/* Mobile pricing summary */}
+              {pricingSummary && (
+                <div className="lg:hidden">
+                  {pricingSummary}
+                </div>
+              )}
 
               <button type="button" onClick={onStep1Next}
                 className="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/80 transition-colors">
@@ -560,10 +598,18 @@ export default function BookingContent() {
             </div>
           )}
         </form>
+        </div>
+
+        {/* Pricing Sidebar */}
+        {(step === 1 || step === 2) && (
+          <div className="hidden lg:block">
+            {pricingSummary}
+          </div>
+        )}
 
         {/* Step 3: Payment */}
         {step === 3 && (
-          <div className="bg-white rounded-2xl shadow p-6 space-y-6">
+          <div className="bg-white rounded-2xl shadow p-6 space-y-6 lg:col-span-2">
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CheckCircle className="w-8 h-8 text-green-500" />
@@ -631,6 +677,7 @@ export default function BookingContent() {
             </button>
           </div>
         )}
+        </div>
       </div>
     </div>
   )
