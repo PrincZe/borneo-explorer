@@ -46,6 +46,7 @@ export default function BookingContent() {
   const packageSlug = searchParams.get('packageSlug') || ''
   const checkIn = searchParams.get('checkIn') || ''
   const checkOut = searchParams.get('checkOut') || ''
+  const guestsParam = parseInt(searchParams.get('guests') || '') || 0
 
   const [step, setStep] = useState(1)
   const [rooms, setRooms] = useState<RoomType[]>([])
@@ -79,7 +80,7 @@ export default function BookingContent() {
     defaultValues: {
       check_in_date: checkIn,
       check_out_date: checkOut,
-      num_guests: 2,
+      num_guests: guestsParam || 2,
       nitrox_required: false,
       equipment_rental: false,
       selected_addons: [],
