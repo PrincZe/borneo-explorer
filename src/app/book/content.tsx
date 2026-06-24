@@ -58,6 +58,11 @@ export default function BookingContent() {
   const [uploading, setUploading] = useState(false)
   const [uploadDone, setUploadDone] = useState(false)
 
+  // Trip type toggle — detect from URL params
+  const [tripType, setTripType] = useState<'day-trip' | 'liveaboard'>(
+    checkIn && checkOut && checkIn !== checkOut ? 'liveaboard' : 'day-trip'
+  )
+
   // Multi-cabin state
   const [selectedCabins, setSelectedCabins] = useState<string[]>(roomSlug ? [''] : [''])
 
@@ -176,21 +181,26 @@ export default function BookingContent() {
   }
 
   const nights = calcNights()
-  const isDayTrip = watchCheckIn && watchCheckOut && watchCheckIn === watchCheckOut
+  const isDayTrip = tripType === 'day-trip'
 
+  // Sync check_out_date for day trips
+  useEffect(() => {
+    if (isDayTrip && watchCheckIn) {
+      setValue('check_out_date', watchCheckIn)
+    }
+  }, [isDayTrip, watchCheckIn, setValue])
+
+  // Auto-select package based on trip type
   useEffect(() => {
     if (!packages.length) return
     if (isDayTrip) {
       const pkg = packages.find(p => p.slug === 'day-trip')
       if (pkg) setValue('package_id', pkg.id)
-    } else if (nights > 0) {
+    } else {
       const pkg = packages.find(p => p.slug === '1d1n-liveaboard')
       if (pkg) setValue('package_id', pkg.id)
-    } else if (packageSlug) {
-      const pkg = packages.find(p => p.slug === packageSlug)
-      if (pkg) setValue('package_id', pkg.id)
     }
-  }, [watchCheckIn, watchCheckOut, packages, packageSlug, isDayTrip, nights, setValue])
+  }, [tripType, packages, isDayTrip, setValue])
 
   const selectedRoom = selectedCabins[0] ? rooms.find(r => r.id === selectedCabins[0]) : undefined
   const allCabinsSelected = selectedCabins.length >= minCabinsNeeded && selectedCabins.every(c => c !== '')
@@ -233,8 +243,8 @@ export default function BookingContent() {
     const checkOut = watch('check_out_date')
     const numGuests = watch('num_guests')
 
-    if (checkIn && checkOut && checkOut < checkIn) {
-      customErrors.date = 'Check-out date cannot be before check-in date'
+    if (!isDayTrip && checkIn && checkOut && checkOut <= checkIn) {
+      customErrors.date = 'Check-out date must be after check-in date'
     }
     if (!allCabinsSelected) {
       customErrors.cabins = 'Please select all cabins'
@@ -380,6 +390,23 @@ export default function BookingContent() {
             <div className="bg-white rounded-2xl shadow p-6 space-y-5">
               <h2 className="text-xl font-bold text-gray-900">Trip Details</h2>
 
+              {/* Trip type toggle */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Trip Type <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button type="button" onClick={() => setTripType('day-trip')}
+                    className={`p-4 rounded-xl border-2 text-center transition-all ${tripType === 'day-trip' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <p className="font-semibold text-gray-900">Day Trip</p>
+                    <p className="text-sm text-gray-500">{formatPrice(1300)}/person</p>
+                  </button>
+                  <button type="button" onClick={() => setTripType('liveaboard')}
+                    className={`p-4 rounded-xl border-2 text-center transition-all ${tripType === 'liveaboard' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <p className="font-semibold text-gray-900">Liveaboard</p>
+                    <p className="text-sm text-gray-500">{formatPrice(1500)}/person/night</p>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests <span className="text-red-500">*</span></label>
                 <input type="number" min={1} max={10} {...register('num_guests', { valueAsNumber: true, min: 1, max: 10 })}
@@ -388,28 +415,36 @@ export default function BookingContent() {
                 {step1Errors.guests && <p className="text-red-500 text-sm mt-1">{step1Errors.guests}</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {tripType === 'day-trip' ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-in Date <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date <span className="text-red-500">*</span></label>
                   <input type="date" min={today} {...register('check_in_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
                   {errors.check_in_date && <p className="text-red-500 text-sm mt-1">{errors.check_in_date.message}</p>}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date <span className="text-xs text-gray-400 font-normal">(same day = day trip)</span> <span className="text-red-500">*</span></label>
-                  <input type="date" min={watchCheckIn || today} {...register('check_out_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
-                  {errors.check_out_date && <p className="text-red-500 text-sm mt-1">{errors.check_out_date.message}</p>}
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-in <span className="text-red-500">*</span></label>
+                    <input type="date" min={today} {...register('check_in_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
+                    {errors.check_in_date && <p className="text-red-500 text-sm mt-1">{errors.check_in_date.message}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-out <span className="text-red-500">*</span></label>
+                    <input type="date" min={watchCheckIn ? (() => { const d = new Date(watchCheckIn); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })() : today} {...register('check_out_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
+                    {errors.check_out_date && <p className="text-red-500 text-sm mt-1">{errors.check_out_date.message}</p>}
+                  </div>
                 </div>
-              </div>
+              )}
               {step1Errors.date && <p className="text-red-500 text-sm">{step1Errors.date}</p>}
 
-              {/* Package auto-detected from dates */}
+              {/* Hidden form fields */}
               <input type="hidden" {...register('package_id')} />
               <input type="hidden" {...register('room_type_id')} />
               {selectedPackage && (
                 <div className="bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
                   <p className="text-sm font-medium text-primary">
-                    {isDayTrip ? '📍 Day Trip' : `🚢 ${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}
-                    {' — '}{formatPrice(selectedPackage.price_per_person)}{isDayTrip ? '/person' : '/person/night'}
+                    {tripType === 'day-trip' ? '📍 Day Trip' : `🚢 ${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}
+                    {' — '}{formatPrice(selectedPackage.price_per_person)}{tripType === 'day-trip' ? '/person' : '/person/night'}
                   </p>
                 </div>
               )}
