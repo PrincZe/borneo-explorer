@@ -55,17 +55,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Check-out date must be after check-in date' }, { status: 400 })
     }
 
-    // Validate guest count against room capacity
     // Validate total cabin capacity fits guests
     if (data.cabins.length > 0) {
       const cabinIds = data.cabins.map(c => c.room_type_id)
       const { data: cabinRooms } = await supabase
         .from('room_types')
-        .select('id, max_occupancy')
+        .select('id, name, max_occupancy, quantity')
         .in('id', cabinIds)
       const totalCapacity = (cabinRooms ?? []).reduce((sum, r) => sum + r.max_occupancy, 0)
       if (data.num_guests > totalCapacity) {
         return NextResponse.json({ error: `Selected cabins fit a maximum of ${totalCapacity} guests` }, { status: 400 })
+      }
+
+      // Check real-time availability for the requested dates
+      const { data: overlappingBookings } = await supabase
+        .from('bookings')
+        .select('room_type_id, cabins')
+        .in('status', ['pending_payment', 'pending_verification', 'confirmed'])
+        .lte('check_in_date', data.check_out_date)
+        .gte('check_out_date', data.check_in_date)
+
+      const bookedCount: Record<string, number> = {}
+      overlappingBookings?.forEach(b => {
+        const bCabins = (b.cabins as { room_type_id: string }[] | null)
+        if (bCabins && bCabins.length > 0) {
+          bCabins.forEach(c => { bookedCount[c.room_type_id] = (bookedCount[c.room_type_id] || 0) + 1 })
+        } else if (b.room_type_id) {
+          bookedCount[b.room_type_id] = (bookedCount[b.room_type_id] || 0) + 1
+        }
+      })
+
+      // Count requested cabins per type
+      const requestedCount: Record<string, number> = {}
+      data.cabins.forEach(c => { requestedCount[c.room_type_id] = (requestedCount[c.room_type_id] || 0) + 1 })
+
+      for (const [typeId, requested] of Object.entries(requestedCount)) {
+        const room = cabinRooms?.find(r => r.id === typeId)
+        const totalQty = room?.quantity ?? 1
+        const alreadyBooked = bookedCount[typeId] || 0
+        if (requested + alreadyBooked > totalQty) {
+          return NextResponse.json({ error: `Not enough ${room?.name ?? 'cabin'} available for your dates. Only ${totalQty - alreadyBooked} left.` }, { status: 400 })
+        }
       }
     }
 

@@ -29,15 +29,29 @@ export async function GET(request: NextRequest) {
     .lte('start_date', end)
     .gte('end_date', start)
 
-  // Get confirmed/pending bookings that overlap
+  // Get confirmed/pending bookings that overlap with requested dates
+  // Check both room_type_id (legacy) and cabins JSONB array
   const { data: existingBookings } = await supabase
     .from('bookings')
-    .select('room_type_id, check_in_date, check_out_date, status')
+    .select('room_type_id, cabins, check_in_date, check_out_date, status')
     .in('status', ['pending_payment', 'pending_verification', 'confirmed'])
     .lte('check_in_date', end)
     .gte('check_out_date', start)
 
-  // Determine availability for each room
+  // Count how many of each room type are booked for overlapping dates
+  const bookedCountByType: Record<string, number> = {}
+  existingBookings?.forEach(booking => {
+    const cabins = (booking.cabins as { room_type_id: string }[] | null)
+    if (cabins && cabins.length > 0) {
+      cabins.forEach(c => {
+        bookedCountByType[c.room_type_id] = (bookedCountByType[c.room_type_id] || 0) + 1
+      })
+    } else if (booking.room_type_id) {
+      bookedCountByType[booking.room_type_id] = (bookedCountByType[booking.room_type_id] || 0) + 1
+    }
+  })
+
+  // Determine availability for each room type
   const availableRooms = rooms?.map(room => {
     const isGloballyBlocked = blockedDates?.some(
       b => b.room_type_id === null
@@ -45,13 +59,14 @@ export async function GET(request: NextRequest) {
     const isRoomBlocked = blockedDates?.some(
       b => b.room_type_id === room.id
     )
-    const hasBookingConflict = existingBookings?.some(
-      b => b.room_type_id === room.id
-    )
+    const totalQuantity = room.quantity ?? 1
+    const booked = bookedCountByType[room.id] || 0
+    const availableCount = Math.max(0, totalQuantity - booked)
 
     return {
       ...room,
-      available: !isGloballyBlocked && !isRoomBlocked && !hasBookingConflict,
+      available: !isGloballyBlocked && !isRoomBlocked && availableCount > 0,
+      available_count: isGloballyBlocked || isRoomBlocked ? 0 : availableCount,
     }
   })
 

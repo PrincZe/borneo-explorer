@@ -91,25 +91,30 @@ export default function BookingContent() {
   const selectedAddons = watch('selected_addons') ?? []
 
   const loadInitialData = useCallback(async () => {
-    const [roomData, pkgData, addOnData] = await Promise.all([
-      fetch('/api/rooms/availability?start=2026-01-01&end=2030-12-31').then(r => r.json()).catch(() => ({ rooms: [] })),
+    const [pkgData, addOnData] = await Promise.all([
       fetch('/api/packages').then(r => r.json()).catch(() => ({ packages: [] })),
       fetch('/api/add-ons').then(r => r.json()).catch(() => ({ add_ons: [] })),
     ])
-    setRooms(roomData.rooms || [])
     setPackages(pkgData.packages || [])
     setAddOns(addOnData.add_ons || [])
+  }, [])
 
-    if (roomSlug) {
-      const room = (roomData.rooms || []).find((r: RoomType) => r.slug === roomSlug)
+  useEffect(() => { loadInitialData() }, [loadInitialData])
+
+  // Fetch room availability based on selected dates
+  const loadRoomAvailability = useCallback(async (start: string, end: string) => {
+    const res = await fetch(`/api/rooms/availability?start=${start}&end=${end}`).catch(() => null)
+    const data = await res?.json().catch(() => ({ rooms: [] }))
+    setRooms(data?.rooms || [])
+
+    if (roomSlug && data?.rooms) {
+      const room = data.rooms.find((r: RoomType) => r.slug === roomSlug)
       if (room) {
         setValue('room_type_id', room.id)
         setSelectedCabins([room.id])
       }
     }
   }, [roomSlug, setValue])
-
-  useEffect(() => { loadInitialData() }, [loadInitialData])
 
   // Auto-adjust cabin count based on guests (max 2 per cabin)
   const watchGuests = watch('num_guests') ?? 1
@@ -176,6 +181,14 @@ export default function BookingContent() {
   // Auto-select package based on dates
   const watchCheckIn = watch('check_in_date')
   const watchCheckOut = watch('check_out_date')
+
+  // Re-fetch room availability when dates change
+  useEffect(() => {
+    if (watchCheckIn) {
+      const end = watchCheckOut && watchCheckOut > watchCheckIn ? watchCheckOut : watchCheckIn
+      loadRoomAvailability(watchCheckIn, end)
+    }
+  }, [watchCheckIn, watchCheckOut, loadRoomAvailability])
 
   function calcNights(): number {
     if (!watchCheckIn || !watchCheckOut) return 0
@@ -486,12 +499,13 @@ export default function BookingContent() {
                         >
                           <option value="">Choose cabin type...</option>
                           {rooms.map(r => {
-                            const used = countOfType(r.id) - (cabinId === r.id ? 1 : 0)
-                            const available = r.quantity ?? 1
-                            const disabled = used >= available
+                            const alreadyPickedInForm = countOfType(r.id) - (cabinId === r.id ? 1 : 0)
+                            const availableFromApi = (r as RoomType & { available_count?: number }).available_count ?? r.quantity ?? 1
+                            const remaining = availableFromApi - alreadyPickedInForm
+                            const disabled = remaining <= 0
                             return (
                               <option key={r.id} value={r.id} disabled={disabled}>
-                                {r.name} — {r.bed_type} · {r.deck ?? ''} {disabled ? '(fully booked)' : `(${available - used} left)`}
+                                {r.name} — {r.bed_type} · {r.deck ?? ''} {disabled ? '(fully booked)' : `(${remaining} available)`}
                               </option>
                             )
                           })}
