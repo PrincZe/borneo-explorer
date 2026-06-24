@@ -114,15 +114,19 @@ export default function BookingContent() {
   // Auto-adjust cabin count based on guests (max 2 per cabin)
   const watchGuests = watch('num_guests') ?? 1
   const minCabinsNeeded = Math.ceil(watchGuests / 2)
+  const maxCabins = Math.min(8, watchGuests)
 
   useEffect(() => {
     setSelectedCabins(prev => {
       if (prev.length < minCabinsNeeded) {
         return [...prev, ...Array(minCabinsNeeded - prev.length).fill('')]
       }
+      if (prev.length > maxCabins) {
+        return prev.slice(0, maxCabins)
+      }
       return prev
     })
-  }, [minCabinsNeeded])
+  }, [minCabinsNeeded, maxCabins])
 
   // Auto-fill customer info from logged-in user's profile
   useEffect(() => {
@@ -329,9 +333,15 @@ export default function BookingContent() {
       <h3 className="font-bold text-gray-900 mb-3">Price Summary</h3>
       <div className="space-y-2 text-sm text-gray-700">
         {selectedCabins.filter(c => c).length > 0 && (
-          <div className="flex justify-between">
-            <span>Cabin{selectedCabins.filter(c => c).length > 1 ? 's' : ''}</span>
-            <span>{selectedCabins.filter(c => c).map(cId => rooms.find(r => r.id === cId)?.name).join(', ')}</span>
+          <div>
+            <div className="flex justify-between"><span>Cabin{selectedCabins.filter(c => c).length > 1 ? 's' : ''}</span><span>{selectedCabins.filter(c => c).length}×</span></div>
+            {Object.entries(selectedCabins.filter(c => c).reduce<Record<string, number>>((acc, cId) => {
+              const name = rooms.find(r => r.id === cId)?.name ?? 'Cabin'
+              acc[name] = (acc[name] || 0) + 1
+              return acc
+            }, {})).map(([name, count]) => (
+              <div key={name} className="text-xs text-gray-500 ml-2">{count}× {name}</div>
+            ))}
           </div>
         )}
         <div className="flex justify-between"><span>Package</span><span>{isDayTrip ? 'Day Trip' : `${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}</span></div>
@@ -454,39 +464,51 @@ export default function BookingContent() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Cabins <span className="text-red-500">*</span>
-                  <span className="text-xs text-gray-400 font-normal ml-2">
-                    ({minCabinsNeeded} cabin{minCabinsNeeded > 1 ? 's' : ''} needed for {watchGuests} guest{watchGuests > 1 ? 's' : ''} · max 2 per cabin)
-                  </span>
                 </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  {minCabinsNeeded} cabin{minCabinsNeeded > 1 ? 's' : ''} needed for {watchGuests} guest{watchGuests > 1 ? 's' : ''} (max 2 per cabin)
+                </p>
                 <div className="space-y-2">
-                  {selectedCabins.map((cabinId, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
-                      <span className="text-xs text-gray-400 w-16">Cabin {idx + 1}</span>
-                      <select
-                        value={cabinId}
-                        onChange={(e) => {
-                          const next = [...selectedCabins]
-                          next[idx] = e.target.value
-                          setSelectedCabins(next)
-                          if (idx === 0) setValue('room_type_id', e.target.value)
-                        }}
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                      >
-                        <option value="">Choose cabin type...</option>
-                        {rooms.map(r => (
-                          <option key={r.id} value={r.id}>{r.name} — {r.bed_type} (max {r.max_occupancy})</option>
-                        ))}
-                      </select>
-                      {idx >= minCabinsNeeded && (
-                        <button type="button" onClick={() => setSelectedCabins(prev => prev.filter((_, i) => i !== idx))}
-                          className="text-red-400 hover:text-red-600 text-sm px-2">✕</button>
-                      )}
-                    </div>
-                  ))}
+                  {selectedCabins.map((cabinId, idx) => {
+                    const countOfType = (typeId: string) => selectedCabins.filter(c => c === typeId).length
+                    return (
+                      <div key={idx} className={`flex gap-2 items-center p-2 rounded-lg ${idx >= minCabinsNeeded ? 'bg-gray-50 border border-dashed border-gray-200' : ''}`}>
+                        <span className="text-xs text-gray-500 w-14 shrink-0">Cabin {idx + 1}</span>
+                        <select
+                          value={cabinId}
+                          onChange={(e) => {
+                            const next = [...selectedCabins]
+                            next[idx] = e.target.value
+                            setSelectedCabins(next)
+                            if (idx === 0) setValue('room_type_id', e.target.value)
+                          }}
+                          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                        >
+                          <option value="">Choose cabin type...</option>
+                          {rooms.map(r => {
+                            const used = countOfType(r.id) - (cabinId === r.id ? 1 : 0)
+                            const available = r.quantity ?? 1
+                            const disabled = used >= available
+                            return (
+                              <option key={r.id} value={r.id} disabled={disabled}>
+                                {r.name} — {r.bed_type} · {r.deck ?? ''} {disabled ? '(fully booked)' : `(${available - used} left)`}
+                              </option>
+                            )
+                          })}
+                        </select>
+                        {idx >= minCabinsNeeded && (
+                          <button type="button" onClick={() => setSelectedCabins(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 rounded border border-red-200 hover:bg-red-50 transition-colors">
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-                {selectedCabins.length < 5 && (
+                {selectedCabins.length < maxCabins && (
                   <button type="button" onClick={() => setSelectedCabins(prev => [...prev, ''])}
-                    className="mt-2 text-sm text-primary hover:underline">
+                    className="mt-3 text-sm text-primary hover:underline font-medium">
                     + Add another cabin
                   </button>
                 )}
@@ -636,7 +658,7 @@ export default function BookingContent() {
                 <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
                   <h3 className="font-semibold text-gray-900 mb-3">Booking Summary</h3>
                   <div className="space-y-1 text-sm text-gray-700">
-                    <div className="flex justify-between"><span>Cabin{selectedCabins.filter(c => c).length > 1 ? 's' : ''}</span><span>{selectedCabins.filter(c => c).map(cId => rooms.find(r => r.id === cId)?.name).join(', ')}</span></div>
+                    <div className="flex justify-between"><span>Cabin{selectedCabins.filter(c => c).length > 1 ? 's' : ''}</span><span>{Object.entries(selectedCabins.filter(c => c).reduce<Record<string, number>>((acc, cId) => { const name = rooms.find(r => r.id === cId)?.name ?? 'Cabin'; acc[name] = (acc[name] || 0) + 1; return acc }, {})).map(([name, count]) => `${count}× ${name}`).join(', ')}</span></div>
                     <div className="flex justify-between"><span>Package</span><span>{isDayTrip ? 'Day Trip' : `${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}</span></div>
                     <div className="flex justify-between"><span>Guests</span><span>{watch('num_guests')}</span></div>
                     <div className="flex justify-between">

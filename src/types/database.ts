@@ -108,6 +108,8 @@ export type Database = {
           max_occupancy: number
           size_sqm: number | null
           bed_type: string | null
+          quantity: number
+          deck: string | null
           amenities: Json
           images: Json
           is_active: boolean
@@ -121,6 +123,8 @@ export type Database = {
           max_occupancy?: number
           size_sqm?: number | null
           bed_type?: string | null
+          quantity?: number
+          deck?: string | null
           amenities?: Json
           images?: Json
           is_active?: boolean
@@ -134,6 +138,8 @@ export type Database = {
           max_occupancy?: number
           size_sqm?: number | null
           bed_type?: string | null
+          quantity?: number
+          deck?: string | null
           amenities?: Json
           images?: Json
           is_active?: boolean
