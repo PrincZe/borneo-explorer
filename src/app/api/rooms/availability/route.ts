@@ -51,22 +51,28 @@ export async function GET(request: NextRequest) {
     }
   })
 
+  // Count blocked units per room type
+  // null room_type_id = entire boat blocked (all cabins)
+  // specific room_type_id = 1 unit of that type blocked per row
+  const isGloballyBlocked = blockedDates?.some(b => b.room_type_id === null) ?? false
+  const blockedCountByType: Record<string, number> = {}
+  blockedDates?.forEach(b => {
+    if (b.room_type_id) {
+      blockedCountByType[b.room_type_id] = (blockedCountByType[b.room_type_id] || 0) + 1
+    }
+  })
+
   // Determine availability for each room type
   const availableRooms = rooms?.map(room => {
-    const isGloballyBlocked = blockedDates?.some(
-      b => b.room_type_id === null
-    )
-    const isRoomBlocked = blockedDates?.some(
-      b => b.room_type_id === room.id
-    )
     const totalQuantity = room.quantity ?? 1
     const booked = bookedCountByType[room.id] || 0
-    const availableCount = Math.max(0, totalQuantity - booked)
+    const blocked = blockedCountByType[room.id] || 0
+    const availableCount = isGloballyBlocked ? 0 : Math.max(0, totalQuantity - booked - blocked)
 
     return {
       ...room,
-      available: !isGloballyBlocked && !isRoomBlocked && availableCount > 0,
-      available_count: isGloballyBlocked || isRoomBlocked ? 0 : availableCount,
+      available: availableCount > 0,
+      available_count: availableCount,
     }
   })
 

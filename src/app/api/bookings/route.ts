@@ -85,6 +85,23 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      // Also check admin-blocked dates
+      const { data: blockedDates } = await supabase
+        .from('blocked_dates')
+        .select('room_type_id')
+        .lte('start_date', data.check_out_date)
+        .gte('end_date', data.check_in_date)
+
+      const isGloballyBlocked = blockedDates?.some(b => b.room_type_id === null)
+      if (isGloballyBlocked) {
+        return NextResponse.json({ error: 'The boat is not available for your selected dates.' }, { status: 400 })
+      }
+
+      const blockedCount: Record<string, number> = {}
+      blockedDates?.forEach(b => {
+        if (b.room_type_id) { blockedCount[b.room_type_id] = (blockedCount[b.room_type_id] || 0) + 1 }
+      })
+
       // Count requested cabins per type
       const requestedCount: Record<string, number> = {}
       data.cabins.forEach(c => { requestedCount[c.room_type_id] = (requestedCount[c.room_type_id] || 0) + 1 })
@@ -92,9 +109,10 @@ export async function POST(request: NextRequest) {
       for (const [typeId, requested] of Object.entries(requestedCount)) {
         const room = cabinRooms?.find(r => r.id === typeId)
         const totalQty = room?.quantity ?? 1
-        const alreadyBooked = bookedCount[typeId] || 0
-        if (requested + alreadyBooked > totalQty) {
-          return NextResponse.json({ error: `Not enough ${room?.name ?? 'cabin'} available for your dates. Only ${totalQty - alreadyBooked} left.` }, { status: 400 })
+        const unavailable = (bookedCount[typeId] || 0) + (blockedCount[typeId] || 0)
+        const remaining = totalQty - unavailable
+        if (requested > remaining) {
+          return NextResponse.json({ error: `Not enough ${room?.name ?? 'cabin'} available for your dates. Only ${remaining} left.` }, { status: 400 })
         }
       }
     }
