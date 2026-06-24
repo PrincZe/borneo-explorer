@@ -9,6 +9,15 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY)
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.liveaboardsipadan.com'
 
 export async function sendBookingConfirmationEmail(booking: Booking & {
@@ -32,7 +41,7 @@ export async function sendBookingConfirmationEmail(booking: Booking & {
         </div>
         <div style="padding: 32px; background: #f9f9f9;">
           <h2 style="color: #0077a8;">Booking Received!</h2>
-          <p>Dear ${booking.customer_name},</p>
+          <p>Dear ${escapeHtml(booking.customer_name)},</p>
           <p>Thank you for booking with MV Celebes Explorer. We have received your booking request and it is currently <strong>pending payment verification</strong>.</p>
 
           <div style="background: white; border-radius: 8px; padding: 20px; margin: 24px 0; border-left: 4px solid #0077a8;">
@@ -102,8 +111,8 @@ export async function sendAdminNewBookingNotification(booking: Booking & {
         <div style="padding: 24px; background: #f9f9f9;">
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
             <tr><td style="padding: 6px 0; color: #666; width: 140px;">Booking Ref</td><td style="padding: 6px 0; font-weight: bold;">${booking.booking_ref}</td></tr>
-            <tr><td style="padding: 6px 0; color: #666;">Customer</td><td style="padding: 6px 0;">${booking.customer_name}</td></tr>
-            <tr><td style="padding: 6px 0; color: #666;">Email</td><td style="padding: 6px 0;">${booking.customer_email}</td></tr>
+            <tr><td style="padding: 6px 0; color: #666;">Customer</td><td style="padding: 6px 0;">${escapeHtml(booking.customer_name)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #666;">Email</td><td style="padding: 6px 0;">${escapeHtml(booking.customer_email)}</td></tr>
             ${booking.room_type ? `<tr><td style="padding: 6px 0; color: #666;">Cabin</td><td style="padding: 6px 0;">${booking.room_type.name}</td></tr>` : ''}
             ${booking.package ? `<tr><td style="padding: 6px 0; color: #666;">Package</td><td style="padding: 6px 0;">${booking.package.name}</td></tr>` : ''}
             ${booking.check_in_date ? `<tr><td style="padding: 6px 0; color: #666;">Check-in</td><td style="padding: 6px 0;">${booking.check_in_date}</td></tr>` : ''}
@@ -138,7 +147,7 @@ export async function sendAdminReceiptUploadedNotification(booking: Booking) {
         </div>
         <div style="padding: 24px; background: #f9f9f9;">
           <p style="font-size: 14px; color: #333;">
-            <strong>${booking.customer_name}</strong> has uploaded a payment receipt for booking
+            <strong>${escapeHtml(booking.customer_name)}</strong> has uploaded a payment receipt for booking
             <strong>${booking.booking_ref}</strong>. Please verify and confirm or reject the booking.
           </p>
           <div style="margin-top: 20px;">
@@ -179,7 +188,7 @@ export async function sendBookingStatusEmail(
           <h2 style="color: ${isConfirmed ? '#2e7d32' : '#c62828'};">
             ${isConfirmed ? 'Your Booking is Confirmed!' : 'Booking Cancelled'}
           </h2>
-          <p>Dear ${booking.customer_name},</p>
+          <p>Dear ${escapeHtml(booking.customer_name)},</p>
           ${isConfirmed
             ? `<p>Great news! Your booking <strong>${booking.booking_ref}</strong> has been confirmed. We have received and verified your payment.</p>
                <p>Please bring your certification card and log book on the day of departure. Our team will meet you at the jetty.</p>`

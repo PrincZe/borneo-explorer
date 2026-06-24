@@ -8,8 +8,8 @@ import type { Database } from '@/types/database'
 type BookingInsert = Database['public']['Tables']['bookings']['Insert']
 
 const bookingSchema = z.object({
-  customer_name: z.string().min(2),
-  customer_email: z.string().email(),
+  customer_name: z.string().min(2).max(100),
+  customer_email: z.string().email().max(254),
   customer_phone: z.string().optional(),
   room_type_id: z.string().uuid(),
   package_id: z.string().uuid(),
@@ -23,7 +23,7 @@ const bookingSchema = z.object({
   add_ons: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    price: z.number(),
+    price: z.number().min(0),
     notes: z.string().optional(),
   })).default([]),
   cabins: z.array(z.object({
@@ -141,7 +141,16 @@ export async function POST(request: NextRequest) {
     }
 
     const basePrice = (pricing?.price_override ?? (pricing?.packages as { price_per_person: number } | null)?.price_per_person ?? 0)
-    const addOnsTotal = data.add_ons.reduce((sum, a) => sum + a.price, 0)
+
+    // Re-fetch add-on prices from database (never trust client-submitted prices)
+    let addOnsTotal = 0
+    if (data.add_ons.length > 0) {
+      const { data: dbAddOns } = await supabase
+        .from('add_on_options')
+        .select('id, price')
+        .in('id', data.add_ons.map(a => a.id))
+      addOnsTotal = (dbAddOns ?? []).reduce((sum, a) => sum + Number(a.price), 0)
+    }
 
     // Calculate nights from dates
     const isDayTrip = data.check_in_date === data.check_out_date
@@ -184,7 +193,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const calculatedTotal = subtotal - discountAmount
+    const calculatedTotal = Math.max(0, subtotal - discountAmount)
+    if (calculatedTotal <= 0) {
+      return NextResponse.json({ error: 'Invalid booking total' }, { status: 400 })
+    }
 
     const insertData: BookingInsert = {
       ...data,

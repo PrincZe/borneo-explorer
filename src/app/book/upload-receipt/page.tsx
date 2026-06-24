@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Upload, CheckCircle, Loader2, FileText, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -28,29 +27,24 @@ function UploadReceiptContent() {
   const [file, setFile] = useState<File | null>(null)
 
   const fetchBooking = useCallback(async () => {
-    const supabase = createClient()
-    let query = supabase.from('bookings').select('id, booking_ref, status, customer_name, total_amount')
-
-    if (bookingId) {
-      query = query.eq('id', bookingId)
-    } else if (bookingRef) {
-      query = query.eq('booking_ref', bookingRef)
-    } else {
+    if (!bookingId) {
       setError('No booking reference provided.')
       setLoading(false)
       return
     }
 
-    const { data, error } = await query.single()
-    if (error || !data) {
+    const res = await fetch(`/api/bookings/${bookingId}/public`)
+    const json = await res.json()
+
+    if (!res.ok || !json.booking) {
       setError('Booking not found.')
-    } else if (data.status !== 'pending_payment') {
-      setError(`This booking is already ${data.status.replace('_', ' ')} — no receipt needed.`)
+    } else if (json.booking.status !== 'pending_payment') {
+      setError(`This booking is already ${json.booking.status.replace('_', ' ')} — no receipt needed.`)
     } else {
-      setBooking(data)
+      setBooking(json.booking)
     }
     setLoading(false)
-  }, [bookingId, bookingRef])
+  }, [bookingId])
 
   useEffect(() => { fetchBooking() }, [fetchBooking])
 
