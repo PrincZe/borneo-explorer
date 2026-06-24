@@ -12,6 +12,13 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient()
 
+  // Auto-expire pending_payment bookings older than 24 hours
+  await supabase
+    .from('bookings')
+    .update({ status: 'cancelled', admin_notes: 'Auto-cancelled: payment not received within 24 hours' })
+    .eq('status', 'pending_payment')
+    .lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+
   // Get all active room types
   const { data: rooms, error: roomsError } = await supabase
     .from('room_types')

@@ -23,6 +23,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
+  if (event.type === 'checkout.session.expired') {
+    const session = event.data.object
+    const bookingId = session.metadata?.booking_id
+
+    if (bookingId) {
+      const supabase = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } }
+      )
+
+      await supabase
+        .from('bookings')
+        .update({ status: 'cancelled', admin_notes: 'Auto-cancelled: Stripe checkout session expired' })
+        .eq('id', bookingId)
+        .eq('status', 'pending_payment')
+    }
+
+    return NextResponse.json({ received: true })
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
     const bookingId = session.metadata?.booking_id

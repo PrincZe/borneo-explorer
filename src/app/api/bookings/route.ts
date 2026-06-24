@@ -42,6 +42,29 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
 
+    // Auto-expire pending_payment bookings older than 24 hours
+    await supabase
+      .from('bookings')
+      .update({ status: 'cancelled', admin_notes: 'Auto-cancelled: payment not received within 24 hours' })
+      .eq('status', 'pending_payment')
+      .lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+
+    // Prevent duplicate submissions — check for same customer + dates within last 2 minutes
+    const { data: recentDupe } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('customer_email', data.customer_email)
+      .eq('check_in_date', data.check_in_date)
+      .eq('check_out_date', data.check_out_date)
+      .neq('status', 'cancelled')
+      .gte('created_at', new Date(Date.now() - 2 * 60 * 1000).toISOString())
+      .limit(1)
+      .single()
+
+    if (recentDupe) {
+      return NextResponse.json({ error: 'A booking for these dates was just created. Please check your email for confirmation.' }, { status: 409 })
+    }
+
     // Calculate total_amount server-side to prevent price tampering
     const { data: pricing } = await supabase
       .from('room_package_pricing')
