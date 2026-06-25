@@ -555,55 +555,11 @@ export default function BookingContent() {
                 </label>
               </div>
 
-              {/* Mobile pricing summary */}
-              {pricingSummary && (
-                <div className="lg:hidden">
-                  {pricingSummary}
-                </div>
-              )}
-
-              <button type="button" onClick={onStep1Next}
-                className="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/80 transition-colors">
-                Next: Your Info <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
-
-          {/* Step 2: Contact + Add-ons */}
-          {step === 2 && (
-            <div className="space-y-4">
-              <div className="bg-white rounded-2xl shadow p-6 space-y-4">
-                <h2 className="text-xl font-bold text-gray-900">Contact Information</h2>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
-                  <input {...register('customer_name')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="John Smith" />
-                  {errors.customer_name && <p className="text-red-500 text-sm mt-1">{errors.customer_name.message}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address <span className="text-red-500">*</span></label>
-                  <input type="email" {...register('customer_email')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="john@example.com" />
-                  {errors.customer_email && <p className="text-red-500 text-sm mt-1">{errors.customer_email.message}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                  <input {...register('customer_phone')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="+60 12-345 6789" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests</label>
-                  <textarea {...register('special_requests')} rows={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="Any dietary requirements, accessibility needs, or special arrangements..." />
-                </div>
-              </div>
-
+              {/* Optional Add-ons */}
               {addOns.length > 0 && (
-                <div className="bg-white rounded-2xl shadow p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">Optional Add-ons</h2>
-                  <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Optional Add-ons</label>
+                  <div className="space-y-2">
                     {addOns.map(a => (
                       <label key={a.id} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
                         selectedAddons.includes(a.id) ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'
@@ -633,8 +589,8 @@ export default function BookingContent() {
               )}
 
               {/* Promo Code */}
-              <div className="bg-white rounded-2xl shadow p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-3">Promo Code</h2>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Promo Code</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -644,7 +600,7 @@ export default function BookingContent() {
                       setPromoStatus('idle')
                       setPromoData(null)
                     }}
-                    placeholder="Enter promo code (optional)"
+                    placeholder="Enter code (optional)"
                     className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent uppercase"
                   />
                   <button
@@ -665,6 +621,51 @@ export default function BookingContent() {
                 {promoStatus === 'invalid' && (
                   <p className="text-red-500 text-sm mt-2">✗ Invalid or expired promo code</p>
                 )}
+              </div>
+
+              {/* Mobile pricing summary */}
+              {pricingSummary && (
+                <div className="lg:hidden">
+                  {pricingSummary}
+                </div>
+              )}
+
+              <button type="button" onClick={onStep1Next}
+                className="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/80 transition-colors">
+                Next: Your Info <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+
+          {/* Step 2: Contact + Payment */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-2xl shadow p-6 space-y-4">
+                <h2 className="text-xl font-bold text-gray-900">Contact Information</h2>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
+                  <input {...register('customer_name')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="John Smith" />
+                  {errors.customer_name && <p className="text-red-500 text-sm mt-1">{errors.customer_name.message}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address <span className="text-red-500">*</span></label>
+                  <input type="email" {...register('customer_email')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="john@example.com" />
+                  {errors.customer_email && <p className="text-red-500 text-sm mt-1">{errors.customer_email.message}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                  <input {...register('customer_phone')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="+60 12-345 6789" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests</label>
+                  <textarea {...register('special_requests')} rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Any dietary requirements, accessibility needs, or special arrangements..." />
+                </div>
               </div>
 
               {/* Summary */}
