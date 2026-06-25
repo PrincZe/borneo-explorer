@@ -264,9 +264,9 @@ export default function BookingContent() {
     if (!isDayTrip && checkIn && checkOut && checkOut <= checkIn) {
       customErrors.date = 'Check-out date must be after check-in date'
     }
-    if (!allCabinsSelected) {
+    if (!isDayTrip && !allCabinsSelected) {
       customErrors.cabins = 'Please select all cabins'
-    } else if (numGuests > totalCabinCapacity) {
+    } else if (!isDayTrip && numGuests > totalCabinCapacity) {
       customErrors.guests = `Selected cabins fit a maximum of ${totalCabinCapacity} guests. Add another cabin.`
     }
     setStep1Errors(customErrors)
@@ -281,7 +281,7 @@ export default function BookingContent() {
         .filter(a => (data.selected_addons ?? []).includes(a.id))
         .map(a => ({ id: a.id, name: a.name, price: a.price }))
 
-      const cabinItems = selectedCabins.filter(c => c).map(cId => {
+      const cabinItems = isDayTrip ? [] : selectedCabins.filter(c => c).map(cId => {
         const room = rooms.find(r => r.id === cId)
         return { room_type_id: cId, room_name: room?.name ?? '' }
       })
@@ -473,8 +473,8 @@ export default function BookingContent() {
                 </div>
               )}
 
-              {/* Cabins */}
-              <div>
+              {/* Cabins — only for liveaboard */}
+              {!isDayTrip && <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Cabins <span className="text-red-500">*</span>
                 </label>
@@ -527,7 +527,7 @@ export default function BookingContent() {
                   </button>
                 )}
                 {step1Errors.cabins && <p className="text-red-500 text-sm mt-1">{step1Errors.cabins}</p>}
-              </div>
+              </div>}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Certification Level</label>
