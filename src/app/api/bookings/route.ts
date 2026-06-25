@@ -11,7 +11,7 @@ const bookingSchema = z.object({
   customer_name: z.string().min(2).max(100),
   customer_email: z.string().email().max(254),
   customer_phone: z.string().optional(),
-  room_type_id: z.string().uuid(),
+  room_type_id: z.string().uuid().optional().or(z.literal('')),
   package_id: z.string().uuid(),
   check_in_date: z.string(),
   check_out_date: z.string(),
@@ -66,15 +66,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate total_amount server-side to prevent price tampering
-    const { data: pricing } = await supabase
-      .from('room_package_pricing')
-      .select('price_override, packages(price_per_person)')
-      .eq('room_type_id', data.room_type_id)
-      .eq('package_id', data.package_id)
-      .single()
+    let pricing: { price_override: number | null; packages: { price_per_person: number } | null } | null = null
+    if (data.room_type_id) {
+      const { data: p } = await supabase
+        .from('room_package_pricing')
+        .select('price_override, packages(price_per_person)')
+        .eq('room_type_id', data.room_type_id)
+        .eq('package_id', data.package_id)
+        .single()
+      pricing = p
+    }
+    if (!pricing) {
+      const { data: pkg } = await supabase
+        .from('packages')
+        .select('price_per_person')
+        .eq('id', data.package_id)
+        .single()
+      pricing = { price_override: null, packages: pkg }
+    }
 
-    // Validate dates
-    if (data.check_in_date && data.check_out_date && data.check_out_date <= data.check_in_date) {
+    // Validate dates (day trips have same check-in/check-out)
+    const isDayTripBooking = data.check_in_date === data.check_out_date
+    if (!isDayTripBooking && data.check_in_date && data.check_out_date && data.check_out_date <= data.check_in_date) {
       return NextResponse.json({ error: 'Check-out date must be after check-in date' }, { status: 400 })
     }
 
@@ -200,6 +213,7 @@ export async function POST(request: NextRequest) {
 
     const insertData: BookingInsert = {
       ...data,
+      room_type_id: data.room_type_id || null,
       booking_ref: '',
       status: 'pending_payment',
       payment_method: data.payment_method,
