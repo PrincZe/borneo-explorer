@@ -83,10 +83,11 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-4 text-foreground">Choose Your Adventure</h2>
             <p className="text-muted-foreground text-center mb-14 max-w-xl mx-auto">Simple, all-inclusive pricing. Just pick your trip and dive.</p>
           </AnimateOnScroll>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
-              { img: '/images/package-4d3n.webp', title: 'Day Trip', dives: '3 dives', desc: 'Full-day diving at Sipadan with lunch and all permits included.', priceMYR: 1300, href: '/diving-packages#day-trip', popular: false },
-              { img: '/images/package-5d4n.webp', title: '1D1N Liveaboard', dives: '5 dives', desc: 'Overnight aboard with sunset, night dive, and sunrise sessions.', priceMYR: 1500, href: '/diving-packages#1d1n', popular: true },
+              { img: '/images/package-4d3n.webp', title: '4D3N Liveaboard', dives: '9 dives', desc: '3 nights aboard diving Sipadan, Mabul and Kapalai. Departs every Tuesday.', priceMYR: 4500, href: '/diving-packages#4d3n', popular: true },
+              { img: '/images/package-5d4n.webp', title: '5D4N Liveaboard', dives: '12 dives', desc: '4 nights aboard with extended time at Sipadan. Departs every Friday.', priceMYR: 6000, href: '/diving-packages#5d4n', popular: false },
+              { img: '/images/package-charter.webp', title: '7D6N Liveaboard', dives: '18 dives', desc: 'The full week across all top sites. Departs every Tuesday.', priceMYR: 9000, href: '/diving-packages#7d6n', popular: false },
             ].map((pkg, i) => (
               <AnimateOnScroll key={i} animation="slide-up" delay={i * 0.15}>
                 <div className="group rounded-2xl overflow-hidden bg-white border border-border shadow-sm hover:shadow-xl transition-all duration-300 relative">

@@ -154,8 +154,11 @@ export type Database = {
           slug: string
           description: string | null
           duration_days: number
+          nights: number | null
+          checkin_weekday: number | null
           num_dives: number | null
           price_per_person: number
+          default_min_pax: number
           charter_price: number | null
           features: Json
           is_popular: boolean
@@ -168,8 +171,11 @@ export type Database = {
           slug: string
           description?: string | null
           duration_days: number
+          nights?: number | null
+          checkin_weekday?: number | null
           num_dives?: number | null
           price_per_person: number
+          default_min_pax?: number
           charter_price?: number | null
           features?: Json
           is_popular?: boolean
@@ -182,8 +188,11 @@ export type Database = {
           slug?: string
           description?: string | null
           duration_days?: number
+          nights?: number | null
+          checkin_weekday?: number | null
           num_dives?: number | null
           price_per_person?: number
+          default_min_pax?: number
           charter_price?: number | null
           features?: Json
           is_popular?: boolean
@@ -269,6 +278,7 @@ export type Database = {
           customer_user_id: string | null
           room_type_id: string | null
           package_id: string | null
+          departure_id: string | null
           check_in_date: string | null
           check_out_date: string | null
           num_guests: number
@@ -301,6 +311,7 @@ export type Database = {
           customer_user_id?: string | null
           room_type_id?: string | null
           package_id?: string | null
+          departure_id?: string | null
           check_in_date?: string | null
           check_out_date?: string | null
           num_guests?: number
@@ -333,6 +344,7 @@ export type Database = {
           customer_user_id?: string | null
           room_type_id?: string | null
           package_id?: string | null
+          departure_id?: string | null
           check_in_date?: string | null
           check_out_date?: string | null
           num_guests?: number
@@ -365,6 +377,54 @@ export type Database = {
           },
           {
             foreignKeyName: "bookings_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_departure_id_fkey"
+            columns: ["departure_id"]
+            isOneToOne: false
+            referencedRelation: "departures"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      departures: {
+        Row: {
+          id: string
+          package_id: string
+          departure_date: string
+          min_pax: number
+          transfer_mode: 'big_boat' | 'speedboat' | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          package_id: string
+          departure_date: string
+          min_pax?: number
+          transfer_mode?: 'big_boat' | 'speedboat' | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          package_id?: string
+          departure_date?: string
+          min_pax?: number
+          transfer_mode?: 'big_boat' | 'speedboat' | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departures_package_id_fkey"
             columns: ["package_id"]
             isOneToOne: false
             referencedRelation: "packages"
@@ -514,6 +574,7 @@ export type Package = Database['public']['Tables']['packages']['Row']
 export type RoomPackagePricing = Database['public']['Tables']['room_package_pricing']['Row']
 export type AddOnOption = Database['public']['Tables']['add_on_options']['Row']
 export type Booking = Database['public']['Tables']['bookings']['Row']
+export type Departure = Database['public']['Tables']['departures']['Row']
 export type BlockedDate = Database['public']['Tables']['blocked_dates']['Row']
 export type Affiliate = Database['public']['Tables']['affiliates']['Row']
 export type PromoCode = Database['public']['Tables']['promo_codes']['Row']

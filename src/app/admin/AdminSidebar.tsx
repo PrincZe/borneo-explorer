@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  LayoutDashboard, ClipboardList, Calendar, Ban, Users, Ship, LogOut, ChevronRight, Users2
+  LayoutDashboard, ClipboardList, Calendar, Ban, Users, Ship, LogOut, ChevronRight, Users2, Anchor
 } from 'lucide-react'
 
 interface Props {
@@ -16,6 +16,7 @@ interface Props {
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, roles: ['company_admin', 'backend_team', 'ship_worker'] },
   { href: '/admin/bookings', label: 'Bookings', icon: ClipboardList, roles: ['company_admin', 'backend_team', 'ship_worker'] },
+  { href: '/admin/departures', label: 'Departures', icon: Anchor, roles: ['company_admin', 'backend_team', 'ship_worker'] },
   { href: '/admin/calendar', label: 'Calendar', icon: Calendar, roles: ['company_admin', 'backend_team', 'ship_worker'] },
   { href: '/admin/block-dates', label: 'Block Dates', icon: Ban, roles: ['company_admin', 'backend_team'] },
   { href: '/admin/affiliates', label: 'Affiliates', icon: Users2, roles: ['company_admin', 'backend_team'] },

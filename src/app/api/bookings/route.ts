@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { stripe } from '@/lib/stripe'
 import { sendBookingConfirmationEmail, sendAdminNewBookingNotification } from '@/lib/email'
+import { weekdayOf, deriveCheckout, weekdayName } from '@/lib/departures'
 import type { Database } from '@/types/database'
 
 type BookingInsert = Database['public']['Tables']['bookings']['Insert']
@@ -65,29 +66,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'A booking for these dates was just created. Please check your email for confirmation.' }, { status: 409 })
     }
 
-    // Calculate total_amount server-side to prevent price tampering
-    let pricing: { price_override: number | null; packages: { price_per_person: number } | null } | null = null
+    // Fetch the package — source of truth for price, nights and departure weekday
+    const { data: pkg } = await supabase
+      .from('packages')
+      .select('price_per_person, nights, checkin_weekday, default_min_pax, is_active')
+      .eq('id', data.package_id)
+      .single()
+
+    if (!pkg || !pkg.is_active) {
+      return NextResponse.json({ error: 'Selected package is not available' }, { status: 400 })
+    }
+
+    // Optional per-room price override
+    let priceOverride: number | null = null
     if (data.room_type_id) {
-      const { data: p } = await supabase
+      const { data: rpp } = await supabase
         .from('room_package_pricing')
-        .select('price_override, packages(price_per_person)')
+        .select('price_override')
         .eq('room_type_id', data.room_type_id)
         .eq('package_id', data.package_id)
         .single()
-      pricing = p
-    }
-    if (!pricing) {
-      const { data: pkg } = await supabase
-        .from('packages')
-        .select('price_per_person')
-        .eq('id', data.package_id)
-        .single()
-      pricing = { price_override: null, packages: pkg }
+      priceOverride = rpp?.price_override ?? null
     }
 
-    // Validate dates (day trips have same check-in/check-out)
-    const isDayTripBooking = data.check_in_date === data.check_out_date
-    if (!isDayTripBooking && data.check_in_date && data.check_out_date && data.check_out_date <= data.check_in_date) {
+    // Validate the departure falls on the package's fixed check-in weekday
+    // and that check-out is exactly `nights` later (server is source of truth).
+    const packageNights = pkg.nights ?? 0
+    if (pkg.checkin_weekday !== null && pkg.checkin_weekday !== undefined) {
+      if (weekdayOf(data.check_in_date) !== pkg.checkin_weekday) {
+        return NextResponse.json(
+          { error: `This package departs on ${weekdayName(pkg.checkin_weekday)}s only.` },
+          { status: 400 }
+        )
+      }
+      const expectedCheckout = deriveCheckout(data.check_in_date, packageNights)
+      if (data.check_out_date !== expectedCheckout) {
+        return NextResponse.json({ error: 'Check-out date does not match the package duration.' }, { status: 400 })
+      }
+    } else if (data.check_out_date <= data.check_in_date) {
+      // Fallback for any legacy package without a fixed weekday
       return NextResponse.json({ error: 'Check-out date must be after check-in date' }, { status: 400 })
     }
 
@@ -153,7 +170,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const basePrice = (pricing?.price_override ?? (pricing?.packages as { price_per_person: number } | null)?.price_per_person ?? 0)
+    const basePrice = priceOverride ?? pkg.price_per_person ?? 0
 
     // Re-fetch add-on prices from database (never trust client-submitted prices)
     let addOnsTotal = 0
@@ -165,14 +182,10 @@ export async function POST(request: NextRequest) {
       addOnsTotal = (dbAddOns ?? []).reduce((sum, a) => sum + Number(a.price), 0)
     }
 
-    // Calculate nights from dates
-    const isDayTrip = data.check_in_date === data.check_out_date
-    const nights = isDayTrip ? 0 : Math.max(1, Math.round(
-      (new Date(data.check_out_date).getTime() - new Date(data.check_in_date).getTime()) / 86400000
-    ))
-    const multiplier = isDayTrip ? 1 : nights
+    // Nights come from the package definition (fixed-duration departures)
+    const nights = Math.max(1, packageNights)
 
-    const subtotal = (basePrice * multiplier * data.num_guests) + addOnsTotal
+    const subtotal = (basePrice * nights * data.num_guests) + addOnsTotal
 
     // Validate promo code if provided
     let promoCodeId: string | null = null
@@ -211,9 +224,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid booking total' }, { status: 400 })
     }
 
+    // Attach the booking to a departure (created lazily on first booking).
+    // Only for fixed-weekday packages; legacy packages skip this.
+    let departureId: string | null = null
+    if (pkg.checkin_weekday !== null && pkg.checkin_weekday !== undefined) {
+      await supabase
+        .from('departures')
+        .upsert(
+          { package_id: data.package_id, departure_date: data.check_in_date, min_pax: pkg.default_min_pax ?? 0 },
+          { onConflict: 'package_id,departure_date', ignoreDuplicates: true }
+        )
+      const { data: departure } = await supabase
+        .from('departures')
+        .select('id')
+        .eq('package_id', data.package_id)
+        .eq('departure_date', data.check_in_date)
+        .single()
+      departureId = departure?.id ?? null
+    }
+
     const insertData: BookingInsert = {
       ...data,
       room_type_id: data.room_type_id || null,
+      departure_id: departureId,
       booking_ref: '',
       status: 'pending_payment',
       payment_method: data.payment_method,

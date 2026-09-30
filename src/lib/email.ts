@@ -44,6 +44,14 @@ export async function sendBookingConfirmationEmail(booking: Booking & {
           <p>Dear ${escapeHtml(booking.customer_name)},</p>
           <p>Thank you for booking with MV Celebes Explorer. We have received your booking request and it is currently <strong>pending payment verification</strong>.</p>
 
+          <div style="background: #fff8e1; border-radius: 8px; padding: 16px 20px; margin: 24px 0; border-left: 4px solid #f5a623;">
+            <p style="margin: 0; color: #7a5b00; font-size: 14px;">
+              <strong>Please note:</strong> departures sail subject to minimum numbers. We&apos;ll confirm around
+              <strong>5 days before departure</strong> whether your transfer to Sipadan is aboard our liveaboard or by speedboat.
+              Either way your booking, cabin and dives are fully secured.
+            </p>
+          </div>
+
           <div style="background: white; border-radius: 8px; padding: 20px; margin: 24px 0; border-left: 4px solid #0077a8;">
             <h3 style="margin-top: 0; color: #333;">Booking Summary</h3>
             <table style="width: 100%; border-collapse: collapse;">
@@ -195,6 +203,49 @@ export async function sendBookingStatusEmail(
             : `<p>We regret to inform you that your booking <strong>${booking.booking_ref}</strong> has been cancelled.</p>
                <p>If you believe this is an error or would like to rebook, please contact us at <a href="mailto:info@celebesexplorer.com" style="color: #0077a8;">info@celebesexplorer.com</a></p>`
           }
+          <p>The MV Celebes Explorer Team</p>
+        </div>
+      </div>
+    `,
+  })
+}
+
+export async function sendDepartureTransferEmail(
+  booking: Booking,
+  transferMode: 'big_boat' | 'speedboat'
+) {
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.startsWith('re_placeholder')) {
+    console.log('[Email] Skipped — no RESEND_API_KEY configured')
+    return
+  }
+
+  const isBigBoat = transferMode === 'big_boat'
+  const headline = isBigBoat
+    ? 'Confirmed — Your Liveaboard Sails!'
+    : 'Confirmed — Speedboat Transfer to Sipadan'
+  const body = isBigBoat
+    ? `<p>Good news! Your departure <strong>${booking.booking_ref}</strong> has reached the numbers to sail.
+        You&apos;ll be diving Sipadan aboard MV Celebes Explorer as planned.</p>`
+    : `<p>Your departure <strong>${booking.booking_ref}</strong> is confirmed. For this date your transfer to Sipadan
+        will be by <strong>speedboat</strong> rather than the liveaboard sailing out — but nothing else changes:
+        your cabin, meals and dives aboard the boat are all exactly as booked.</p>`
+
+  await getResend().emails.send({
+    from: FROM_EMAIL,
+    to: booking.customer_email,
+    subject: `${headline} — ${booking.booking_ref} | MV Celebes Explorer`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #0077a8; padding: 24px; text-align: center;">
+          <h1 style="color: white; margin: 0;">MV Celebes Explorer</h1>
+        </div>
+        <div style="padding: 32px; background: #f9f9f9;">
+          <h2 style="color: #2e7d32;">${headline}</h2>
+          <p>Dear ${escapeHtml(booking.customer_name)},</p>
+          ${body}
+          ${booking.check_in_date ? `<p style="color: #666;">Departure date: <strong>${booking.check_in_date}</strong></p>` : ''}
+          <p>Please bring your certification card and log book on the day of departure. Our team will meet you at the jetty.</p>
+          <p>If you have any questions, contact us at <a href="mailto:info@celebesexplorer.com" style="color: #0077a8;">info@celebesexplorer.com</a></p>
           <p>The MV Celebes Explorer Team</p>
         </div>
       </div>

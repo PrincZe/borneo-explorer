@@ -9,6 +9,7 @@ import type { Booking } from '@/types/database'
 type BookingWithRelations = Booking & {
   room_type: { name: string; slug: string } | null
   package: { name: string; duration_days: number; num_dives: number | null } | null
+  departure: { transfer_mode: 'big_boat' | 'speedboat' | null } | null
 }
 
 interface Props {
@@ -65,7 +66,8 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
     .select(`
       *,
       room_type:room_types(name, slug),
-      package:packages(name, duration_days, num_dives)
+      package:packages(name, duration_days, num_dives),
+      departure:departures(transfer_mode)
     `)
     .eq('id', id)
     .single()
@@ -94,6 +96,33 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
           <h1 className={`text-2xl font-bold ${config.color} mb-2`}>{config.label}</h1>
           <p className="text-gray-600">{config.message}</p>
         </div>
+
+        {/* Departure transfer status — waitlist vs confirmed mode */}
+        {booking.departure && booking.status !== 'cancelled' && (
+          booking.departure.transfer_mode === null ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
+              <h3 className="font-semibold text-amber-800 mb-1">Departure not yet confirmed</h3>
+              <p className="text-sm text-amber-700">
+                Departures sail subject to minimum numbers. We&apos;ll email you around <strong>5 days before</strong> to
+                confirm whether your transfer to Sipadan is aboard our liveaboard or by speedboat — either way your
+                cabin and dives are secured.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6">
+              <h3 className="font-semibold text-green-800 mb-1">
+                {booking.departure.transfer_mode === 'big_boat'
+                  ? 'Confirmed — sailing aboard MV Celebes Explorer'
+                  : 'Confirmed — speedboat transfer to Sipadan'}
+              </h3>
+              <p className="text-sm text-green-700">
+                {booking.departure.transfer_mode === 'big_boat'
+                  ? 'Your departure has the numbers to sail. See you aboard!'
+                  : 'For this date your transfer to Sipadan is by speedboat. Your cabin, meals and dives aboard the boat are all exactly as booked.'}
+              </p>
+            </div>
+          )
+        )}
 
         {/* Booking details */}
         <div className="bg-white rounded-2xl shadow p-6 mb-6">

@@ -32,8 +32,9 @@ const Footer = () => {
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-white/40 mb-4">Packages</h3>
             <ul className="space-y-2.5">
-              <li><Link href="/diving-packages#day-trip" className="text-white/60 hover:text-white text-sm transition-colors">Day Trip</Link></li>
-              <li><Link href="/diving-packages#1d1n" className="text-white/60 hover:text-white text-sm transition-colors">1D1N Liveaboard</Link></li>
+              <li><Link href="/diving-packages#4d3n" className="text-white/60 hover:text-white text-sm transition-colors">4D3N Liveaboard</Link></li>
+              <li><Link href="/diving-packages#5d4n" className="text-white/60 hover:text-white text-sm transition-colors">5D4N Liveaboard</Link></li>
+              <li><Link href="/diving-packages#7d6n" className="text-white/60 hover:text-white text-sm transition-colors">7D6N Liveaboard</Link></li>
             </ul>
           </div>
 

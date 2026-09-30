@@ -2,8 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import type { Booking } from '@/types/database'
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { ClipboardList, CheckCircle, Clock, XCircle, AlertCircle, TrendingUp } from 'lucide-react'
+import { ClipboardList, CheckCircle, Clock, XCircle, AlertCircle, TrendingUp, Anchor } from 'lucide-react'
 import DashboardFilter from './DashboardFilter'
+import { toDateStr } from '@/lib/departures'
 
 type BookingStat = Pick<Booking, 'status' | 'total_amount' | 'created_at' | 'check_in_date'>
 type RecentBooking = Pick<Booking, 'id' | 'booking_ref' | 'customer_name' | 'status' | 'total_amount' | 'created_at'> & {
@@ -107,6 +108,17 @@ export default async function AdminDashboard({ searchParams }: Props) {
   const recentBookings = (recentBookingsRaw ?? []) as RecentBooking[]
   const displayBookings = month ? recentBookings : recentBookings.slice(0, 5)
 
+  // Departures needing confirmation: within the 5-day lead window, mode not yet set
+  const todayStr = toDateStr(now)
+  const leadWindow = new Date(now)
+  leadWindow.setDate(leadWindow.getDate() + 5)
+  const { count: departuresNeedingConfirmation } = await supabase
+    .from('departures')
+    .select('id', { count: 'exact', head: true })
+    .is('transfer_mode', null)
+    .gte('departure_date', todayStr)
+    .lte('departure_date', toDateStr(leadWindow))
+
   const selectedLabel = month
     ? new Date(month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
     : null
@@ -157,6 +169,17 @@ export default async function AdminDashboard({ searchParams }: Props) {
           <div className="text-3xl font-bold text-gray-900">{pending_verification}</div>
           <p className="text-xs text-gray-400 mt-1">awaiting verification</p>
         </div>
+
+        <Link href="/admin/departures" className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:border-primary/30 transition-colors">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 bg-amber-50 rounded-lg flex items-center justify-center">
+              <Anchor className="w-5 h-5 text-amber-600" />
+            </div>
+            <span className="text-sm text-gray-500 font-medium">Departures to Confirm</span>
+          </div>
+          <div className="text-3xl font-bold text-gray-900">{departuresNeedingConfirmation ?? 0}</div>
+          <p className="text-xs text-gray-400 mt-1">within 5 days · needs boat/speedboat call</p>
+        </Link>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <div className="flex items-center gap-3 mb-3">

@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Upload, CheckCircle, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react'
+import { Upload, CheckCircle, ChevronRight, ChevronLeft, Loader2, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { RoomType, Package, AddOnOption } from '@/types/database'
 import { useCurrency } from '@/components/CurrencyProvider'
+import { upcomingDepartureDates, deriveCheckout, weekdayName } from '@/lib/departures'
 
 const step1Schema = z.object({
   room_type_id: z.string().optional(),
@@ -59,11 +60,6 @@ export default function BookingContent() {
   const [uploading, setUploading] = useState(false)
   const [uploadDone, setUploadDone] = useState(false)
 
-  // Trip type toggle — detect from URL params
-  const [tripType, setTripType] = useState<'day-trip' | 'liveaboard'>(
-    checkIn && checkOut && checkIn !== checkOut ? 'liveaboard' : 'day-trip'
-  )
-
   // Multi-cabin state
   const [selectedCabins, setSelectedCabins] = useState<string[]>(roomSlug ? [''] : [''])
 
@@ -100,6 +96,13 @@ export default function BookingContent() {
   }, [])
 
   useEffect(() => { loadInitialData() }, [loadInitialData])
+
+  // Preselect package from a deep-link (?packageSlug=), else default to the first
+  useEffect(() => {
+    if (!packages.length || selectedPackageId) return
+    const match = packageSlug ? packages.find(p => p.slug === packageSlug) : null
+    setValue('package_id', (match ?? packages[0]).id)
+  }, [packages, packageSlug, selectedPackageId, setValue])
 
   // Fetch room availability based on selected dates
   const loadRoomAvailability = useCallback(async (start: string, end: string) => {
@@ -190,52 +193,45 @@ export default function BookingContent() {
     }
   }, [watchCheckIn, watchCheckOut, loadRoomAvailability])
 
-  function calcNights(): number {
-    if (!watchCheckIn || !watchCheckOut) return 0
-    if (watchCheckIn === watchCheckOut) return 0
-    const msPerDay = 86400000
-    const diff = (new Date(watchCheckOut).getTime() - new Date(watchCheckIn).getTime()) / msPerDay
-    return Math.max(0, Math.round(diff))
-  }
+  const selectedPackage = packages.find(p => p.id === selectedPackageId)
+  const nights = selectedPackage?.nights ?? 0
 
-  const nights = calcNights()
-  const isDayTrip = tripType === 'day-trip'
+  // Upcoming valid departure dates for the selected package's check-in weekday
+  const departureOptions = useMemo(() => {
+    const weekday = selectedPackage?.checkin_weekday
+    if (weekday === null || weekday === undefined) return []
+    return upcomingDepartureDates(weekday)
+  }, [selectedPackage?.checkin_weekday])
 
-  // Sync check_out_date for day trips
+  // When a valid check-in date is chosen, derive check-out from the package duration
   useEffect(() => {
-    if (isDayTrip && watchCheckIn) {
-      setValue('check_out_date', watchCheckIn)
+    if (watchCheckIn && selectedPackage?.nights != null) {
+      const derived = deriveCheckout(watchCheckIn, selectedPackage.nights)
+      if (derived !== watchCheckOut) setValue('check_out_date', derived)
     }
-  }, [isDayTrip, watchCheckIn, setValue])
+  }, [watchCheckIn, selectedPackage?.nights, watchCheckOut, setValue])
 
-  // Auto-select package based on trip type
+  // If the chosen check-in isn't valid for the selected package, clear it
   useEffect(() => {
-    if (!packages.length) return
-    if (isDayTrip) {
-      const pkg = packages.find(p => p.slug === 'day-trip')
-      if (pkg) setValue('package_id', pkg.id)
-    } else {
-      const pkg = packages.find(p => p.slug === '1d1n-liveaboard')
-      if (pkg) setValue('package_id', pkg.id)
+    if (watchCheckIn && departureOptions.length > 0 && !departureOptions.includes(watchCheckIn)) {
+      setValue('check_in_date', '')
+      setValue('check_out_date', '')
     }
-  }, [tripType, packages, isDayTrip, setValue])
+  }, [departureOptions, watchCheckIn, setValue])
 
-  const selectedRoom = selectedCabins[0] ? rooms.find(r => r.id === selectedCabins[0]) : undefined
   const allCabinsSelected = selectedCabins.length >= minCabinsNeeded && selectedCabins.every(c => c !== '')
   const totalCabinCapacity = selectedCabins.filter(c => c).reduce((sum, cId) => {
     const room = rooms.find(r => r.id === cId)
     return sum + (room?.max_occupancy ?? 0)
   }, 0)
-  const selectedPackage = packages.find(p => p.id === selectedPackageId)
 
   function calcSubtotal() {
     const basePrice = selectedPackage?.price_per_person ?? 0
     const guests = watch('num_guests') ?? 1
-    const multiplier = isDayTrip ? 1 : Math.max(1, nights)
     const addonTotal = addOns
       .filter(a => selectedAddons.includes(a.id))
       .reduce((sum, a) => sum + a.price, 0)
-    return basePrice * multiplier * guests + addonTotal
+    return basePrice * Math.max(1, nights) * guests + addonTotal
   }
 
   function calcDiscount(subtotal: number) {
@@ -258,15 +254,14 @@ export default function BookingContent() {
 
     const customErrors: { date?: string; guests?: string; cabins?: string } = {}
     const checkIn = watch('check_in_date')
-    const checkOut = watch('check_out_date')
     const numGuests = watch('num_guests')
 
-    if (!isDayTrip && checkIn && checkOut && checkOut <= checkIn) {
-      customErrors.date = 'Check-out date must be after check-in date'
+    if (!checkIn) {
+      customErrors.date = 'Please select a departure date'
     }
-    if (!isDayTrip && !allCabinsSelected) {
+    if (!allCabinsSelected) {
       customErrors.cabins = 'Please select all cabins'
-    } else if (!isDayTrip && numGuests > totalCabinCapacity) {
+    } else if (numGuests > totalCabinCapacity) {
       customErrors.guests = `Selected cabins fit a maximum of ${totalCabinCapacity} guests. Add another cabin.`
     }
     setStep1Errors(customErrors)
@@ -281,7 +276,7 @@ export default function BookingContent() {
         .filter(a => (data.selected_addons ?? []).includes(a.id))
         .map(a => ({ id: a.id, name: a.name, price: a.price }))
 
-      const cabinItems = isDayTrip ? [] : selectedCabins.filter(c => c).map(cId => {
+      const cabinItems = selectedCabins.filter(c => c).map(cId => {
         const room = rooms.find(r => r.id === cId)
         return { room_type_id: cId, room_name: room?.name ?? '' }
       })
@@ -337,8 +332,6 @@ export default function BookingContent() {
     }
   }
 
-  const today = new Date().toISOString().split('T')[0]
-
   const steps = ['Trip Details', 'Your Info', 'Payment']
 
   const pricingSummary = selectedPackage && (watchCheckIn && watchCheckOut) ? (
@@ -357,11 +350,11 @@ export default function BookingContent() {
             ))}
           </div>
         )}
-        <div className="flex justify-between"><span>Package</span><span>{isDayTrip ? 'Day Trip' : `${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}</span></div>
+        <div className="flex justify-between"><span>Package</span><span>{selectedPackage.name}</span></div>
         <div className="flex justify-between"><span>Guests</span><span>{watch('num_guests')}</span></div>
         <div className="flex justify-between text-xs text-gray-500">
           <span>Rate</span>
-          <span>{formatPrice(selectedPackage.price_per_person)} {isDayTrip ? '× ' : `× ${nights} night${nights > 1 ? 's' : ''} × `}{watch('num_guests')} pax</span>
+          <span>{formatPrice(selectedPackage.price_per_person)} × {nights} night{nights > 1 ? 's' : ''} × {watch('num_guests')} pax</span>
         </div>
         {selectedAddons.length > 0 && addOns.filter(a => selectedAddons.includes(a.id)).map(a => (
           <div key={a.id} className="flex justify-between text-gray-500"><span>+ {a.name}</span><span>{formatPrice(a.price)}</span></div>
@@ -414,21 +407,33 @@ export default function BookingContent() {
             <div className="bg-white rounded-2xl shadow p-6 space-y-5">
               <h2 className="text-xl font-bold text-gray-900">Trip Details</h2>
 
-              {/* Trip type toggle */}
+              {/* Package selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Trip Type <span className="text-red-500">*</span></label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button type="button" onClick={() => setTripType('day-trip')}
-                    className={`p-4 rounded-xl border-2 text-center transition-all ${tripType === 'day-trip' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'}`}>
-                    <p className="font-semibold text-gray-900">Day Trip</p>
-                    <p className="text-sm text-gray-500">{formatPrice(1300)}/person</p>
-                  </button>
-                  <button type="button" onClick={() => setTripType('liveaboard')}
-                    className={`p-4 rounded-xl border-2 text-center transition-all ${tripType === 'liveaboard' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'}`}>
-                    <p className="font-semibold text-gray-900">Liveaboard</p>
-                    <p className="text-sm text-gray-500">{formatPrice(1500)}/person/night</p>
-                  </button>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Package <span className="text-red-500">*</span></label>
+                <div className="grid gap-3">
+                  {packages.map(pkg => (
+                    <button
+                      key={pkg.id}
+                      type="button"
+                      onClick={() => {
+                        setValue('package_id', pkg.id)
+                        setValue('check_in_date', '')
+                        setValue('check_out_date', '')
+                      }}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${selectedPackageId === pkg.id ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                      <div className="flex justify-between items-baseline">
+                        <p className="font-semibold text-gray-900">{pkg.name}</p>
+                        <p className="text-sm text-primary font-semibold">{formatPrice(pkg.price_per_person)}<span className="text-xs text-gray-500 font-normal">/person/night</span></p>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {pkg.nights} night{(pkg.nights ?? 0) > 1 ? 's' : ''} · departs every {pkg.checkin_weekday != null ? weekdayName(pkg.checkin_weekday) : ''}
+                        {pkg.num_dives ? ` · ${pkg.num_dives} dives` : ''}
+                      </p>
+                    </button>
+                  ))}
                 </div>
+                {errors.package_id && <p className="text-red-500 text-sm mt-1">{errors.package_id.message}</p>}
               </div>
 
               <div>
@@ -439,42 +444,50 @@ export default function BookingContent() {
                 {step1Errors.guests && <p className="text-red-500 text-sm mt-1">{step1Errors.guests}</p>}
               </div>
 
-              {tripType === 'day-trip' ? (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date <span className="text-red-500">*</span></label>
-                  <input type="date" min={today} {...register('check_in_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
-                  {errors.check_in_date && <p className="text-red-500 text-sm mt-1">{errors.check_in_date.message}</p>}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-in <span className="text-red-500">*</span></label>
-                    <input type="date" min={today} {...register('check_in_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
-                    {errors.check_in_date && <p className="text-red-500 text-sm mt-1">{errors.check_in_date.message}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-out <span className="text-red-500">*</span></label>
-                    <input type="date" min={watchCheckIn ? (() => { const d = new Date(watchCheckIn); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })() : today} {...register('check_out_date')} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent" />
-                    {errors.check_out_date && <p className="text-red-500 text-sm mt-1">{errors.check_out_date.message}</p>}
-                  </div>
-                </div>
-              )}
-              {step1Errors.date && <p className="text-red-500 text-sm">{step1Errors.date}</p>}
+              {/* Departure date — only valid check-in weekdays for the package */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Departure Date <span className="text-red-500">*</span></label>
+                {!selectedPackage ? (
+                  <p className="text-sm text-gray-400 border border-dashed border-gray-200 rounded-lg px-3 py-2.5">Select a package first</p>
+                ) : (
+                  <select
+                    value={watchCheckIn || ''}
+                    onChange={e => setValue('check_in_date', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                  >
+                    <option value="">Choose a departure...</option>
+                    {departureOptions.map(d => (
+                      <option key={d} value={d}>
+                        {new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {watchCheckIn && watchCheckOut && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Returns {new Date(watchCheckOut).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long' })} · {nights} night{nights > 1 ? 's' : ''} aboard
+                  </p>
+                )}
+                {step1Errors.date && <p className="text-red-500 text-sm mt-1">{step1Errors.date}</p>}
+              </div>
+
+              {/* Waitlist / expectation notice */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex gap-3">
+                <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800">
+                  Departures sail subject to minimum numbers. We&apos;ll confirm around <strong>5 days before</strong> whether
+                  the transfer to Sipadan is aboard our liveaboard or by speedboat — either way your booking, cabin and dives are secured.
+                </p>
+              </div>
 
               {/* Hidden form fields */}
               <input type="hidden" {...register('package_id')} />
+              <input type="hidden" {...register('check_in_date')} />
+              <input type="hidden" {...register('check_out_date')} />
               <input type="hidden" {...register('room_type_id')} />
-              {selectedPackage && (
-                <div className="bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
-                  <p className="text-sm font-medium text-primary">
-                    {tripType === 'day-trip' ? '📍 Day Trip' : `🚢 ${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}
-                    {' — '}{formatPrice(selectedPackage.price_per_person)}{tripType === 'day-trip' ? '/person' : '/person/night'}
-                  </p>
-                </div>
-              )}
 
-              {/* Cabins — only for liveaboard */}
-              {!isDayTrip && <div>
+              {/* Cabins */}
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Cabins <span className="text-red-500">*</span>
                 </label>
@@ -527,7 +540,7 @@ export default function BookingContent() {
                   </button>
                 )}
                 {step1Errors.cabins && <p className="text-red-500 text-sm mt-1">{step1Errors.cabins}</p>}
-              </div>}
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Certification Level</label>
@@ -674,11 +687,11 @@ export default function BookingContent() {
                   <h3 className="font-semibold text-gray-900 mb-3">Booking Summary</h3>
                   <div className="space-y-1 text-sm text-gray-700">
                     <div className="flex justify-between"><span>Cabin{selectedCabins.filter(c => c).length > 1 ? 's' : ''}</span><span>{Object.entries(selectedCabins.filter(c => c).reduce<Record<string, number>>((acc, cId) => { const name = rooms.find(r => r.id === cId)?.name ?? 'Cabin'; acc[name] = (acc[name] || 0) + 1; return acc }, {})).map(([name, count]) => `${count}× ${name}`).join(', ')}</span></div>
-                    <div className="flex justify-between"><span>Package</span><span>{isDayTrip ? 'Day Trip' : `${nights} Night${nights > 1 ? 's' : ''} Liveaboard`}</span></div>
+                    <div className="flex justify-between"><span>Package</span><span>{selectedPackage.name}</span></div>
                     <div className="flex justify-between"><span>Guests</span><span>{watch('num_guests')}</span></div>
                     <div className="flex justify-between">
                       <span>Base price</span>
-                      <span>{formatPrice(selectedPackage.price_per_person)} × {isDayTrip ? '' : `${nights} night${nights > 1 ? 's' : ''} × `}{watch('num_guests')} pax = {formatPrice(selectedPackage.price_per_person * (isDayTrip ? 1 : Math.max(1, nights)) * (watch('num_guests') ?? 1))}</span>
+                      <span>{formatPrice(selectedPackage.price_per_person)} × {nights} night{nights > 1 ? 's' : ''} × {watch('num_guests')} pax = {formatPrice(selectedPackage.price_per_person * Math.max(1, nights) * (watch('num_guests') ?? 1))}</span>
                     </div>
                     {selectedAddons.length > 0 && addOns.filter(a => selectedAddons.includes(a.id)).map(a => (
                       <div key={a.id} className="flex justify-between text-gray-500"><span>+ {a.name}</span><span>{formatPrice(a.price)}</span></div>
