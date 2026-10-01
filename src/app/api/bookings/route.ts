@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     // Fetch the package — source of truth for price, nights and departure weekday
     const { data: pkg } = await supabase
       .from('packages')
-      .select('price_per_person, nights, checkin_weekday, default_min_pax, is_active')
+      .select('price_per_person, nights, checkin_weekday, is_active')
       .eq('id', data.package_id)
       .single()
 
@@ -224,29 +224,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid booking total' }, { status: 400 })
     }
 
-    // Attach the booking to a departure (created lazily on first booking).
-    // Only for fixed-weekday packages; legacy packages skip this.
-    let departureId: string | null = null
-    if (pkg.checkin_weekday !== null && pkg.checkin_weekday !== undefined) {
-      await supabase
-        .from('departures')
-        .upsert(
-          { package_id: data.package_id, departure_date: data.check_in_date, min_pax: pkg.default_min_pax ?? 0 },
-          { onConflict: 'package_id,departure_date', ignoreDuplicates: true }
-        )
-      const { data: departure } = await supabase
-        .from('departures')
-        .select('id')
-        .eq('package_id', data.package_id)
-        .eq('departure_date', data.check_in_date)
-        .single()
-      departureId = departure?.id ?? null
-    }
-
+    // departure_id is set automatically by the link_booking_departure trigger
+    // (SECURITY DEFINER), which finds/creates the departure for fixed-weekday
+    // packages — the anon booking role can't write to the admin-only table itself.
     const insertData: BookingInsert = {
       ...data,
       room_type_id: data.room_type_id || null,
-      departure_id: departureId,
       booking_ref: '',
       status: 'pending_payment',
       payment_method: data.payment_method,
