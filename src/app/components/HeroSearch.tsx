@@ -40,23 +40,22 @@ export default function HeroSearch() {
 
   return (
     <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
-      {/* Package toggle */}
-      <div className="flex justify-center gap-2 mb-4 flex-wrap">
-        {PACKAGES.map(pkg => (
-          <button
-            key={pkg.slug}
-            type="button"
-            onClick={() => { setPackageSlug(pkg.slug); setCheckIn('') }}
-            className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${packageSlug === pkg.slug ? 'bg-white text-primary shadow' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}
-          >
-            {pkg.label} · {formatPrice(pkg.priceMYR)}
-          </button>
-        ))}
-      </div>
-
       {/* Search fields */}
       <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-end">
-        <div className="flex-1 w-full">
+        <div className="w-full sm:w-32">
+          <label className="block text-white/80 text-xs font-semibold uppercase tracking-wider mb-1.5">Package</label>
+          <select
+            value={packageSlug}
+            onChange={e => { setPackageSlug(e.target.value); setCheckIn('') }}
+            className="w-full bg-white/20 text-white border border-white/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/30 [color-scheme:dark]"
+          >
+            {PACKAGES.map(pkg => (
+              <option key={pkg.slug} value={pkg.slug} className="text-gray-900">{pkg.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="w-full sm:w-44">
           <label className="block text-white/80 text-xs font-semibold uppercase tracking-wider mb-1.5">Departure</label>
           <select
             value={checkIn}
@@ -72,7 +71,7 @@ export default function HeroSearch() {
           </select>
         </div>
 
-        <div className="w-full sm:w-24">
+        <div className="w-full sm:w-20">
           <label className="block text-white/80 text-xs font-semibold uppercase tracking-wider mb-1.5">Guests</label>
           <input
             type="number"
@@ -86,12 +85,16 @@ export default function HeroSearch() {
 
         <button
           type="submit"
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-accent text-white px-6 py-3 rounded-xl font-bold hover:bg-accent/90 transition-all duration-300 hover:scale-105 whitespace-nowrap"
+          className="w-full sm:w-auto sm:flex-1 flex items-center justify-center gap-2 bg-accent text-white px-6 py-3 rounded-xl font-bold hover:bg-accent/90 transition-all duration-300 hover:scale-105 whitespace-nowrap"
         >
           <Search className="w-4 h-4" />
           Book Now
         </button>
       </div>
+
+      <p className="text-center text-white/70 text-xs mt-3">
+        {selectedPackage.label} · {selectedPackage.nights} nights · {formatPrice(selectedPackage.priceMYR)} per person
+      </p>
     </form>
   )
 }
